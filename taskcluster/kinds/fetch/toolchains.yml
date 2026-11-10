@@ -227,14 +227,14 @@ cctools-port:
     fetch:
         type: git
         repo: https://github.com/tpoechtrager/cctools-port
-        revision: 1cce4a06877992f708b2e0e2ab217a0cfb923a4f
+        revision: ef969083aecf77dee1814d6961a06b88af23edef
 
 libtapi:
     description: libtapi source code
     fetch:
         type: git
         repo: https://github.com/tpoechtrager/apple-libtapi
-        revision: 593d29141bf176d24021208c75af54a2ef23c38b
+        revision: 2a5705470a92691520fa2ff589482ea6c4039740
 
 libdispatch:
     description: libdispatch source code
@@ -573,17 +573,6 @@ nodejs-22-macosx64:
         url: https://nodejs.org/dist/v22.16.0/node-v22.16.0-darwin-x64.tar.xz
         sha256: 5c34638f2c0e3f3aaa7b3a94b58304765a169730da1896ebba8515ea4d987a9c
         size: 26966604
-        artifact-name: nodejs.tar.zst
-        strip-components: 1
-        add-prefix: node/
-
-nodejs-22-win32:
-    description: nodejs 22 for x86 Windows
-    fetch:
-        type: static-url
-        url: https://nodejs.org/dist/v22.16.0/node-v22.16.0-win-x86.zip
-        sha256: c23e16ffddd95ef45272549675a8f87480b3a0a900bebb94c277ff11ba99ec06
-        size: 32797334
         artifact-name: nodejs.tar.zst
         strip-components: 1
         add-prefix: node/
