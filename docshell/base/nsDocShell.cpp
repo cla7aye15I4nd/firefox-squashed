@@ -3557,6 +3557,11 @@ nsDocShell::DisplayLoadError(nsresult aError, nsIURI* aURI,
     // CSP error
     cssClass.AssignLiteral("neterror");
     error = "cspBlocked";
+  } else if (NS_ERROR_CONNECTION_ALLOWLIST_VIOLATION == aError) {
+    cssClass.AssignLiteral("neterror");
+    error = "blockedByConnectionAllowlist";
+    // TODO(Bug 2089542): Update strings
+    errorDescriptionID = "blockedByCORP";
   } else if (NS_ERROR_XFO_VIOLATION == aError) {
     // XFO error
     cssClass.AssignLiteral("neterror");
@@ -6496,8 +6501,10 @@ nsresult nsDocShell::EndPageLoad(nsIChannel* aChannel, nsresult aStatus) {
     // this particular error can happen asynchronously.
     // Bug 1629201 is filed for having much clearer decision making around
     // which cases need error events.
-    bool fireFrameErrorEvent = (aStatus == NS_ERROR_CONTENT_BLOCKED_SHOW_ALT ||
-                                aStatus == NS_ERROR_CONTENT_BLOCKED);
+    bool fireFrameErrorEvent =
+        (aStatus == NS_ERROR_CONTENT_BLOCKED_SHOW_ALT ||
+         aStatus == NS_ERROR_CONTENT_BLOCKED ||
+         aStatus == NS_ERROR_CONNECTION_ALLOWLIST_VIOLATION);
     UnblockEmbedderLoadEventForFailure(fireFrameErrorEvent);
 
     bool skippedUnknownProtocolNavigation = false;
@@ -8225,6 +8232,10 @@ nsresult nsDocShell::HandleSameDocumentNavigation(
     destinationNavigationAPIState = navigationAPIState;
   }
 
+  // After firing the navigate event, we no longer need the source element.
+  // So we take ownership of it here to avoid keeping it alive too long.
+  RefPtr<Element> sourceElement = aLoadState->TakeSourceElement();
+
   if (nsCOMPtr<nsPIDOMWindowInner> window = doc->GetInnerWindow(); window) {
     if (!aState.mHistoryNavBetweenSameDoc) {
       // https://html.spec.whatwg.org/#navigate-fragid
@@ -8232,7 +8243,6 @@ nsresult nsDocShell::HandleSameDocumentNavigation(
       if (RefPtr<Navigation> navigation = window->Navigation()) {
         AutoJSAPI jsapi;
         if (jsapi.Init(window)) {
-          RefPtr<Element> sourceElement = aLoadState->GetSourceElement();
           // Step 4
           RefPtr apiMethodTracker = aLoadState->GetNavigationAPIMethodTracker();
           bool shouldContinue = navigation->FirePushReplaceReloadNavigateEvent(
@@ -9001,6 +9011,10 @@ nsresult nsDocShell::InternalLoad(nsDocShellLoadState* aLoadState,
     ResetOngoingNavigation(Nothing());
   }
 
+  // After firing the navigate event, we no longer need the source element.
+  // So we take ownership of it here to avoid keeping it alive too long.
+  RefPtr<Element> sourceElement = aLoadState->TakeSourceElement();
+
   // 22. If all of the following are true:
   //    * userInvolvement is not "browser UI";
   //    * navigable's active document's origin is same origin-domain with
@@ -9022,8 +9036,6 @@ nsresult nsDocShell::InternalLoad(nsDocShellLoadState* aLoadState,
       if (RefPtr<Navigation> navigation = window->Navigation()) {
         AutoJSAPI jsapi;
         if (jsapi.Init(window)) {
-          RefPtr<Element> sourceElement = aLoadState->GetSourceElement();
-
           // 22.2 Let entryListForFiring be formDataEntryList if
           //      documentResource is a POST resource; otherwise, null.
           RefPtr<FormData> formData = aLoadState->GetFormDataEntryList();

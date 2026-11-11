@@ -15,6 +15,22 @@ permalink: /changelog/
   * ⚠️ **Breaking change**: Renamed `LocaleManager#updateResources` to `LocaleManager#onConfigurationChanged` to make it's API use case clear. Should only be used in `onConfigurationChanged` overrides typically in `Application`, `Activity`, `Fragment` classes.
 * **support-test**
   * 🆕 Added `assertNoUncaughtException`.
+* **feature-importer**
+    * ⚠️ **Breaking change**: `BookmarkImporter` is replaced by `ImporterScreen`, which takes a `FileImporter` and the dialog title, so it can import both bookmarks and passwords. The file picker uses the new `FileImporter.mimeType`. `ImporterMiddleware` takes a `FileImporter`. `ImporterAction.FileSelected` takes a nullable `Uri`, where `null` means the user canceled picking a file, and replaces `ImporterAction.FileSelectionCanceled`. `ImporterEvent` is now `Parcelable`, and `ImporterEvent.Failure` and `ImporterAction.ImportFailed` carry a `FileImporterError`. [Bug 2041577](https://bugzilla.mozilla.org/show_bug.cgi?id=2041577)
+* **lib-bookmarks-file**
+    * ⚠️ **Breaking change**: `htmlImporter` is now an extension of `FileImporter.Companion`. It takes a `FileParser<BookmarksParseResult>`, returns a `FileImporter<BookmarksImportResult>` and reports failures as a `FileImporterException`. [Bug 2041577](https://bugzilla.mozilla.org/show_bug.cgi?id=2041577)
+* **lib-passwords-file**
+    * ⚠️ **Breaking change**: `csvImporter` is now an extension of `FileImporter.Companion`. It takes a `FileParser<PasswordsParseResult>` and returns a `FileImporter<PasswordsImportResult>`. [Bug 2041577](https://bugzilla.mozilla.org/show_bug.cgi?id=2041577)
+* **lib-bookmark-parser-jsoup**
+    * ⚠️ **Breaking change**: `jsoupParser` is now an extension of `FileParser.Companion` and returns a `FileParser<BookmarksParseResult>`. Parse failures are reported as a `FileParserException` carrying a `BookmarksParseError`. [Bug 2041577](https://bugzilla.mozilla.org/show_bug.cgi?id=2041577)
+* **lib-password-parser-csv**
+    * ⚠️ **Breaking change**: `CsvPasswordsFileParser` implements `FileParser<PasswordsParseResult>`. Parse failures are reported as a `FileParserException` carrying a `PasswordsParseError`. [Bug 2041577](https://bugzilla.mozilla.org/show_bug.cgi?id=2041577)
+* **concept-bookmarks-file**, **concept-passwords-file** and **feature-password-importer**
+    * ⚠️ **Breaking change**: Removed. Use `FileImporter` from `concept-file-importer` and `feature-importer` instead. [Bug 2041577](https://bugzilla.mozilla.org/show_bug.cgi?id=2041577)
+* **concept-bookmarks-parser**
+    * ⚠️ **Breaking change**: Removed. Use `FileParser<BookmarksParseResult>` from `concept-file-parser`, with `BookmarksParseResult` and `BookmarksParseError` from `lib-bookmark-parser-jsoup`, instead of `BookmarksFileParser` and `BookmarksParserError`. [Bug 2041577](https://bugzilla.mozilla.org/show_bug.cgi?id=2041577)
+* **concept-passwords-parser**
+    * ⚠️ **Breaking change**: Removed. Use `FileParser<PasswordsParseResult>` from `concept-file-parser`, with `PasswordsParseResult` and `PasswordsParseError` from `lib-password-parser-csv`, instead of `PasswordsFileParser` and `PasswordsParserError`. [Bug 2041577](https://bugzilla.mozilla.org/show_bug.cgi?id=2041577)
 
 # 161.0
 * **browser-state**

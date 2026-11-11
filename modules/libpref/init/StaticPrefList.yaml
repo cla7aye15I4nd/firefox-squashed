@@ -3484,6 +3484,21 @@
 #endif
   mirror: always
 
+# Whether innerHTML parses markup in a small subset of HTML without the full
+# HTML parser.
+- name: dom.html_fragment_fast_path.enabled
+  type: bool
+  value: @IS_NIGHTLY_BUILD@
+  mirror: always
+
+# The dom.fragment_parsing metrics time one in 2 to the power of this many
+# innerHTML or DOMParser calls, since timing every call costs more than the
+# fast path saves on small fragments.
+- name: dom.html_fragment_fast_path.telemetry_sample_shift
+  type: uint32_t
+  value: 6
+  mirror: always
+
 # <img loading=lazy sizes=auto>
 # https://html.spec.whatwg.org/multipage/embedded-content.html#allows-auto-sizes
 - name: dom.image.sizes_auto.enabled
@@ -17656,6 +17671,12 @@
   value: @IS_NIGHTLY_BUILD@
   mirror: always
 
+# When true, HTTP upgrade requests (e.g. WebSocket) use HTTPS RR.
+- name: network.http.upgrade_use_https_rr
+  type: RelaxedAtomicBool
+  value: true
+  mirror: always
+
 # When true, Happy Eyeballs is also used for requests carrying an HTTP
 # upgrade (e.g. WebSocket). Gated separately so the upgrade path can be
 # rolled out independently of the main Happy Eyeballs pref.
@@ -19044,13 +19065,6 @@
 # Prefs starting with "security."
 #---------------------------------------------------------------------------
 
-# Mochitests that need to load resource:// URIs not declared content-accessible
-# in manifests should set this pref.
-- name: security.all_resource_uri_content_accessible
-  type: bool
-  value: false
-  mirror: always
-
 - name: security.bad_cert_domain_error.url_fix_enabled
   type: bool
   value: true
@@ -19084,6 +19098,18 @@
 - name: security.csp.reporting.enabled
   type: bool
   value: true
+  mirror: always
+
+# Enable support for the CSP 'strict-dynamic-url' keyword.
+- name: security.csp.strict-dynamic-url.enabled
+  type: RelaxedAtomicBool
+  value: false
+  mirror: always
+
+# Enable support for CSP url hashes (url-hash-source, e.g. 'url-sha256-...').
+- name: security.csp.url-hashes.enabled
+  type: RelaxedAtomicBool
+  value: false
   mirror: always
 
 #ifdef DEBUG
@@ -20811,13 +20837,13 @@
   mirror: always
 
 - name: webgl.disable-angle
-  type: RelaxedAtomicBool
+  type: bool
 #if defined(XP_WIN) || defined(XP_MACOSX)
   value: false
 #else
   value: true
 #endif
-  mirror: always
+  mirror: once
 
 - name: webgl.disable-wgl
   type: RelaxedAtomicBool

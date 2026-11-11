@@ -9159,6 +9159,12 @@ listen_to_page:
     description: |
       The user pressed the play button to resume. Playback starts on its own
       when the audio icon is tapped, which `requested` records.
+    extra_keys:
+      source:
+        description: |
+          Where the control was pressed: 'in_app' for player sheet, or 'media_controls' for the playback
+          notification, the lock screen and other system media controls.
+        type: string
     bugs:
       - https://bugzilla.mozilla.org/show_bug.cgi?id=2064878
     data_reviews:
@@ -9172,6 +9178,12 @@ listen_to_page:
     type: event
     description: |
       The user pressed the pause button.
+    extra_keys:
+      source:
+        description: |
+          Where the control was pressed: 'in_app' for player sheet, or 'media_controls' for the playback
+          notification, the lock screen and other system media controls.
+        type: string
     bugs:
       - https://bugzilla.mozilla.org/show_bug.cgi?id=2064878
     data_reviews:
@@ -9185,6 +9197,12 @@ listen_to_page:
     type: event
     description: |
       The user pressed the skip-back button to jump backward.
+    extra_keys:
+      source:
+        description: |
+          Where the control was pressed: 'in_app' for player sheet, or 'media_controls' for the playback
+          notification, the lock screen and other system media controls.
+        type: string
     bugs:
       - https://bugzilla.mozilla.org/show_bug.cgi?id=2064878
     data_reviews:
@@ -9198,6 +9216,12 @@ listen_to_page:
     type: event
     description: |
       The user pressed the skip-forward button to jump forward.
+    extra_keys:
+      source:
+        description: |
+          Where the control was pressed: 'in_app' for player sheet, or 'media_controls' for the playback
+          notification, the lock screen and other system media controls.
+        type: string
     bugs:
       - https://bugzilla.mozilla.org/show_bug.cgi?id=2064878
     data_reviews:
@@ -9308,6 +9332,12 @@ listen_to_page:
       speed:
         description: |
           The selected speed as a multiple of the normal reading speed.
+        type: string
+      source:
+        description: |
+          Where the speed was changed: `in_app` for the player sheet's speed
+          menu, or `media_controls` for the speed control of the playback
+          notification or the lock screen.
         type: string
     bugs:
       - https://bugzilla.mozilla.org/show_bug.cgi?id=2064878
@@ -10049,6 +10079,110 @@ logins:
     notification_emails:
       - android-probes@mozilla.com
     expires: never
+    metadata:
+      tags:
+        - Logins
+  import_from_file_menu_click:
+    type: event
+    description: |
+      The user clicks the menu entry point to import passwords from a file.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2041577
+    data_reviews:
+      - https://phabricator.services.mozilla.com/D337978
+    data_sensitivity:
+      - interaction
+    notification_emails:
+      - android-probes@mozilla.com
+    expires: never
+    metadata:
+      tags:
+        - Logins
+  import_started:
+    type: event
+    description: |
+      The import of passwords from a file started.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2041577
+    data_reviews:
+      - https://phabricator.services.mozilla.com/D337978
+    data_sensitivity:
+      - interaction
+    notification_emails:
+      - android-probes@mozilla.com
+    expires: never
+    metadata:
+      tags:
+        - Logins
+  import_successful:
+    type: event
+    description: |
+      The user successfully imports passwords from a file.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2041577
+    data_reviews:
+      - https://phabricator.services.mozilla.com/D337978
+    data_sensitivity:
+      - interaction
+    notification_emails:
+      - android-probes@mozilla.com
+    expires: never
+    extra_keys:
+      logins_count:
+        description: The number of logins imported.
+        type: quantity
+    metadata:
+      tags:
+        - Logins
+  import_cancelled:
+    type: event
+    description: |
+      The user cancels the import of passwords from a file.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2041577
+    data_reviews:
+      - https://phabricator.services.mozilla.com/D337978
+    data_sensitivity:
+      - interaction
+    notification_emails:
+      - android-probes@mozilla.com
+    expires: never
+    metadata:
+      tags:
+        - Logins
+  import_failed:
+    type: event
+    description: |
+      The import of passwords from a file failed.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2041577
+    data_reviews:
+      - https://phabricator.services.mozilla.com/D337978
+    data_sensitivity:
+      - interaction
+    notification_emails:
+      - android-probes@mozilla.com
+    expires: never
+    extra_keys:
+      error_code:
+        description: |
+          The error code describing what occurred during import.
+          Current values are:
+            1xxx - errors imply a file reading error
+            1001 - file read error
+
+            2xxx - errors imply an error encountered during parsing
+            2001 - parsing error - unsupported content type (a file with no recognizable login columns)
+            2002 - parsing error - invalid format (a required column is missing)
+            2003 - parsing error - an unexpected error related to parsing
+            2004 - parsing error - conflicting columns (two columns map to the same field)
+
+            3xxx - errors imply an error encountered during password insertion
+            3001 - passwords save error
+
+            4xxx - other errors not yet handled/classified
+            4001 - general unknown error
+        type: string
     metadata:
       tags:
         - Logins
@@ -17756,8 +17890,7 @@ vpn:
   location_changed:
     type: event
     description:
-      Triggered when a location is selected, restored, or reverted after a
-      failed switch.
+      Triggered when a location is selected or restored.
     extra_keys:
       to:
         description: >
@@ -17767,8 +17900,7 @@ vpn:
       operation:
         description: >
           "user_action" when the user tapped a location in the location list, "restore" when a
-          saved location was applied at startup, "reset" when the previous location was put back
-          after a failed switch.
+          saved location was applied at startup.
         type: string
       proxy_state:
         description: >
@@ -17777,8 +17909,10 @@ vpn:
         type: string
     bugs:
       - https://bugzilla.mozilla.org/show_bug.cgi?id=2049043
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2071352
     data_reviews:
       - https://phabricator.services.mozilla.com/D326740
+      - https://phabricator.services.mozilla.com/D339737
     data_sensitivity:
       - interaction
       - technical
