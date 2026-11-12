@@ -2884,6 +2884,13 @@
   value: false
   mirror: always
 
+# Enables document.parsed, document.contentLoaded and document.loaded.
+# See https://github.com/whatwg/html/pull/1936
+- name: dom.document.load_promises.enabled
+  type: bool
+  value: false
+  mirror: always
+
 # Preferences for document-language metadata extraction.
 #
 # How long a metadata request waits for the document load event before
@@ -5607,6 +5614,7 @@
 # Whether OPFS is enabled in Private Browsing Mode.
 # TODO: Before enabling, please handle crash safety in
 # EncryptedRandomAccessStream::SetEOF, see bug 2072949 for details.
+# Also, please fix bug 2087589.
 - name: dom.fs.privateBrowsing.enabled
   type: RelaxedAtomicBool
   value: false
