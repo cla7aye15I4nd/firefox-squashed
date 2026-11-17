@@ -2750,6 +2750,12 @@
   value: true
   mirror: always
 
+# Expose CycleCollectorUnlinkTester, for testing use-after-unlink issues.
+- name: dom.cc.unlink_test
+  type: RelaxedAtomicBool
+  value: false
+  mirror: always
+
 # Master gate for the web custom format support in the Async Clipboard API.
 - name: dom.clipboard.customFormatSupport.enabled
   type: RelaxedAtomicBool
@@ -3252,13 +3258,6 @@
   mirror: always
 
 - name: dom.fetch.streaming_upload
-  type: RelaxedAtomicBool
-  value: true
-  mirror: always
-
-# Whether to validate that a fetch request's principal is compatible with the
-# remote type of the process it originates from.
-- name: dom.fetch.validatePrincipalForRemoteType
   type: RelaxedAtomicBool
   value: true
   mirror: always
@@ -4383,7 +4382,7 @@
 # https://w3c.github.io/push-api/#declarative-push-message
 - name: dom.push.declarative.enabled
   type: RelaxedAtomicBool
-  value: false
+  value: true
   mirror: always
 
 # Indicate the deprecated aesgcm support in PushManager.supportedContentEncodings.
@@ -4399,7 +4398,7 @@
 # https://w3c.github.io/push-api/#extensions-to-the-serviceworkerregistration-interface
 - name: dom.push.window_pushmanager.enabled
   type: bool
-  value: false
+  value: true
   mirror: always
 
 # Whether QuotaExceededError is a DOMException derived interface carrying
@@ -5139,13 +5138,6 @@
 - name: dom.security.skip_remote_script_assertion_in_system_priv_context
   type: RelaxedAtomicBool
   value: false
-  mirror: always
-
-# If and only if true, support for Trusted Types
-# (https://w3c.github.io/trusted-types/dist/spec/) is enabled.
-- name: dom.security.trusted_types.enabled
-  type: RelaxedAtomicBool
-  value: true
   mirror: always
 
 # If true, record the security.trusted_types_readiness Glean metric when a
@@ -11259,12 +11251,9 @@
   mirror: always
 
 # Is support for CSS background-clip: border-area enabled?
-#
-# NOTE(emilio): Before enabling on content, we need to add support for dotted /
-# dashed / double borders to the codepath, see bug 2046372.
 - name: layout.css.background-clip.border-area.enabled
   type: RelaxedAtomicBool
-  value: false
+  value: true
   mirror: always
   rust: true
 
@@ -17010,6 +16999,17 @@
   value: 100
   mirror: always
 
+# The most an HTTP/2 session may buffer for writing, in bytes. The session
+# fails rather than growing its output queue beyond this.
+# The queue normally stays at a few tens of KB and only grows while the socket
+# can't be written to. 256 MB is far above that, and matches the largest IPC
+# message (IPC::Channel::kMaximumMessageSize), which bounds the request data a
+# content process can send.
+- name: network.http.http2.max_output_queue_size
+  type: RelaxedAtomicUint32
+  value: 256 * 1024 * 1024
+  mirror: always
+
 - name: network.http.http2.default-hpack-buffer
   type: RelaxedAtomicInt32
   value: 65536 # 64K
@@ -19763,6 +19763,7 @@
   mirror: always
   rust: true
 
+# Whether to enable ML-DSA in TLS and in certificate verification.
 - name: security.tls.enable_mldsa
   type: RelaxedAtomicBool
   value: false
