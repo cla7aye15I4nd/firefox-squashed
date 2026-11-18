@@ -1122,11 +1122,7 @@ class Settings(
                 true
             }
             alwaysOpenTheLastTabWhenOpeningTheApp -> {
-                if (lastHomeActivity > lastBrowseActivity) {
-                    true
-                } else {
-                    false
-                }
+                !enableHomepageAsNewTab && lastHomeActivity > lastBrowseActivity
             }
             else -> {
                 false
@@ -2405,6 +2401,23 @@ class Settings(
         booleanPreference(
             appContext.getPreferenceKey(R.string.pref_key_credit_cards_save_and_autofill_cards),
             default = { isAutofillSupported },
+        )
+
+    /**
+     * Feature flag that indicates if the save credit card prompt can save the security code. The same value is passed
+     * to the engine so that Gecko captures the security code only when this is true.
+     */
+    var isCreditCardSecurityCodeEnabled by
+        booleanPreference(
+            key = appContext.getPreferenceKey(R.string.pref_key_credit_cards_enable_security_code),
+            default = { FxNimbus.features.creditCardSecurityCode.value().enabled },
+        )
+
+    /** Stores the user choice from the "Save security codes" toggle in the save credit card prompt. */
+    var shouldSaveCreditCardSecurityCode by
+        booleanPreference(
+            key = appContext.getPreferenceKey(R.string.pref_key_credit_cards_save_security_code),
+            default = true,
         )
 
     /**

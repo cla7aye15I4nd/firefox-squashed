@@ -260,7 +260,6 @@ pref("media.videocontrols.keyboard-tab-to-all-controls", true);
     pref("media.peerconnection.sdp.strict_success", false);
   #endif
 
-  pref("media.peerconnection.sctp.use_dcsctp", true);
   pref("media.peerconnection.sdp.disable_stereo_fmtp", false);
   pref("media.webrtc.debug.log_file", "");
 
@@ -3270,6 +3269,10 @@ pref("captivedetect.canonicalContent", "");
 pref("captivedetect.maxWaitingTime", 5000);
 pref("captivedetect.pollingTime", 3000);
 pref("captivedetect.maxRetryCount", 5);
+// When the canonical URL looks intercepted, confirm with a request to this
+// HTTPS endpoint. If it succeeds, the network is treated as an unlocked portal.
+pref("captivedetect.httpsCheck.enabled", true);
+pref("captivedetect.httpsCheck.url", "https://firefox-portal-detection.com/generate_204");
 
 // The tables used for Safebrowsing phishing and malware checks
 pref("urlclassifier.malwareTable", "goog-malware-proto,goog-unwanted-proto,moztest-harmful-simple,moztest-malware-simple,moztest-unwanted-simple");

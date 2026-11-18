@@ -331,17 +331,26 @@ class nsCSPKeywordSrc : public nsCSPBaseSrc {
 
 /* =============== nsCSPNonceSource =========== */
 
+// The prefix of a nonce-source expression, e.g. 'nonce-abc'. It's not a
+// keyword-source, see the grammar in
+// https://w3c.github.io/webappsec-csp/#framework-directive-source-list.
+inline constexpr nsLiteralString kCSPNonceSourcePrefix = u"'nonce-"_ns;
+
 class nsCSPNonceSrc : public nsCSPBaseSrc {
  public:
   explicit nsCSPNonceSrc(const nsAString& aNonce);
   virtual ~nsCSPNonceSrc();
 
+  // Nonce matching happens in nsCSPDirective::allowsByNonce(), rather than in
+  // allows().
   bool allows(enum CSPKeyword aKeyword,
-              const nsAString& aContentOrNonce) const override;
+              const nsAString& aContentOrNonce) const override {
+    return false;
+  }
   bool visit(nsCSPSrcVisitor* aVisitor) const override;
   void toString(nsAString& outStr) const override;
 
-  inline void getNonce(nsAString& outStr) const { outStr.Assign(mNonce); };
+  inline const nsAString& nonce() const { return mNonce; };
 
   bool isNonce() const final { return true; }
 
@@ -526,6 +535,8 @@ class nsCSPDirective {
                        bool aUpgradeInsecure) const;
   virtual bool allows(enum CSPKeyword aKeyword,
                       const nsAString& aContentOrNonce) const;
+  // Whether a nonce-source expression allows an element with the nonce aNonce.
+  bool allowsByNonce(const nsAString& aNonce) const;
   bool allowsAllInlineBehavior(CSPDirective aDir) const;
 
   // Implements step 2.1 to 2.7 of
@@ -738,6 +749,7 @@ class nsCSPPolicy {
                nsAString& outViolatedDirectiveString) const;
   bool allows(CSPDirective aDirective, enum CSPKeyword aKeyword,
               const nsAString& aContentOrNonce) const;
+  bool allowsByNonce(CSPDirective aDirective, const nsAString& aNonce) const;
   void toString(nsAString& outStr) const;
   void toDomCSPStruct(mozilla::dom::CSP& outCSP) const;
 
