@@ -3269,10 +3269,6 @@ pref("captivedetect.canonicalContent", "");
 pref("captivedetect.maxWaitingTime", 5000);
 pref("captivedetect.pollingTime", 3000);
 pref("captivedetect.maxRetryCount", 5);
-// When the canonical URL looks intercepted, confirm with a request to this
-// HTTPS endpoint. If it succeeds, the network is treated as an unlocked portal.
-pref("captivedetect.httpsCheck.enabled", true);
-pref("captivedetect.httpsCheck.url", "https://firefox-portal-detection.com/generate_204");
 
 // The tables used for Safebrowsing phishing and malware checks
 pref("urlclassifier.malwareTable", "goog-malware-proto,goog-unwanted-proto,moztest-harmful-simple,moztest-malware-simple,moztest-unwanted-simple");
@@ -4166,6 +4162,17 @@ pref("extensions.formautofill.creditCards.storage.rust.migrationTestAttempts", 0
 // Firefox, which gives up after a budget: the enabled pref above is then
 // treated as false while this stays at the budget.
 pref("extensions.formautofill.creditCards.storage.rust.migrationAttempts", 0);
+// How many of those attempts in a row failed with a card whose number would not
+// decrypt. Managed by Firefox.
+pref("extensions.formautofill.creditCards.storage.rust.migrationUndecryptableAttempts", 0);
+// Whether the migration may leave out cards whose number would not decrypt,
+// rather than failing on them. Set through the Nimbus feature
+// autofill-credit-cards-drop-undecryptable.
+pref("extensions.formautofill.creditCards.storage.rust.dropUndecryptable", false);
+// Once that many attempts have failed, the last of them failing to decrypt a
+// card too, cards whose number would not decrypt are left out of the migration
+// rather than failing it.
+pref("extensions.formautofill.creditCards.storage.rust.dropUndecryptableAfterAttempts", 3);
 pref("extensions.formautofill.creditCards.supported", "on");
 pref("extensions.formautofill.creditCards.enabled", true);
 pref("extensions.formautofill.creditCards.ignoreAutocompleteOff", true);

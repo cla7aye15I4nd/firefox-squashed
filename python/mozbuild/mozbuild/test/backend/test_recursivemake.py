@@ -1892,7 +1892,8 @@ class TestRecursiveMakeBackend(BackendTester):
             # Debug information is installed, but there is nothing to check.
             f"$(INSTALL) {pdb} $(DEPTH)/dist/bin/",
             f"$(INSTALL) {so} $(DEPTH)/dist/bin/",
-            "$(call py_action,check_binary libfoo.so,$(DEPTH)/dist/bin/libfoo.so)",
+            "$(call py_action,check_binary libfoo.so,--prebuilt "
+            "$(DEPTH)/dist/bin/libfoo.so)",
         ]
 
         found = [str for str in lines if "libfoo." in str]
@@ -2545,6 +2546,10 @@ class TestRecursiveMakeBackend(BackendTester):
         sharedlib_backend = mozpath.join(env.topobjdir, "sharedlib", "backend.mk")
         with open(sharedlib_backend) as fh:
             sharedlib_content = fh.read()
+        self.assertIn(
+            "libextra-link-deps-lib.so: libextra-link-deps-lib.so.symbols",
+            sharedlib_content,
+        )
         self.assertIn(
             "libextra-link-deps-lib.so: generated.rsp",
             sharedlib_content,

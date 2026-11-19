@@ -105,8 +105,8 @@ class ManageRecords {
   }
 
   async _loadRecords() {
-    let storage = await this.getStorage();
-    let records = await storage.getAll();
+    let autofillStorage = await this.getStorage();
+    let records = await autofillStorage.getAll();
     // Sort by last used time starting with most recent
     records.sort((a, b) => {
       let aLastUsed = a.timeLastUsed || a.timeLastModified;
@@ -159,13 +159,13 @@ class ManageRecords {
    * @param  {Array<DOMElement>} options
    */
   async removeRecords(options) {
-    let storage = await this.getStorage();
+    let autofillStorage = await this.getStorage();
     // Pause listening to storage change event to avoid triggering `loadRecords`
     // when removing records
     Services.obs.removeObserver(this, "formautofill-storage-changed");
 
     for (let option of options) {
-      storage.remove(option.value);
+      autofillStorage.remove(option.value);
       option.remove();
     }
     this.updateButtonsStates(this._selectedOptions);
@@ -429,7 +429,7 @@ export class ManageCreditCards extends ManageRecords {
       attribute => attribute.name == "aria-label"
     )?.value;
     return {
-      id: "credit-card-label-with-security-code-2",
+      id: "credit-card-label-with-security-code-3",
       args: {
         label: message?.value ?? "",
         ariaLabel: ariaLabel ?? message?.value ?? "",

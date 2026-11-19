@@ -10925,6 +10925,10 @@ interface nsIMockNetworkLayerController extends nsISupports {
   pauseTCPConnect(aAddr: nsINetAddr): void;
   /** <!-- binding_to(idl, method, XPIDL_nsIMockNetworkLayerController_clearPausedTCPConnect) --> */
   clearPausedTCPConnect(): void;
+  /** <!-- binding_to(idl, method, XPIDL_nsIMockNetworkLayerController_pauseTCPWrite) --> */
+  pauseTCPWrite(aAddr: nsINetAddr): void;
+  /** <!-- binding_to(idl, method, XPIDL_nsIMockNetworkLayerController_clearPausedTCPWrite) --> */
+  clearPausedTCPWrite(): void;
   /** <!-- binding_to(idl, method, XPIDL_nsIMockNetworkLayerController_blockUDPAddrIO) --> */
   blockUDPAddrIO(aAddr: nsINetAddr): void;
   /** <!-- binding_to(idl, method, XPIDL_nsIMockNetworkLayerController_clearBlockedUDPAddr) --> */
@@ -18438,7 +18442,7 @@ interface nsICaptivePortalCallback extends nsISupports {
   /** <!-- binding_to(idl, method, XPIDL_nsICaptivePortalCallback_prepare) --> */
   prepare(): void;
   /** <!-- binding_to(idl, method, XPIDL_nsICaptivePortalCallback_complete) --> */
-  complete(success: boolean, unlockedPortal?: boolean): void;
+  complete(success: boolean): void;
 }
 
 /** <!-- binding_to(idl, interface_name, XPIDL_nsICaptivePortalDetector) --> */
@@ -21618,6 +21622,14 @@ interface nsIUrlClassifierPrefixSet extends nsISupports {
   contains(aPrefix: u32): boolean;
   /** <!-- binding_to(idl, method, XPIDL_nsIUrlClassifierPrefixSet_isEmpty) --> */
   isEmpty(): boolean;
+}
+
+// https://searchfox.org/firefox-main/source/toolkit/components/url-classifier/nsIUrlClassifierRealTimeKeyService.idl
+
+/** <!-- binding_to(idl, interface_name, XPIDL_nsIUrlClassifierRealTimeKeyService) --> */
+interface nsIUrlClassifierRealTimeKeyService extends nsISupports {
+  /** <!-- binding_to(idl, method, XPIDL_nsIUrlClassifierRealTimeKeyService_getKeyConfig) --> */
+  getKeyConfig(): Promise<any>;
 }
 
 // https://searchfox.org/firefox-main/source/toolkit/components/url-classifier/nsIUrlClassifierRemoteSettingsService.idl
@@ -27590,6 +27602,7 @@ interface nsIXPCComponents_Interfaces {
   nsIUrlClassifierGetCacheCallback: nsJSIID<nsIUrlClassifierGetCacheCallback>;
   nsIUrlClassifierInfo: nsJSIID<nsIUrlClassifierInfo>;
   nsIUrlClassifierPrefixSet: nsJSIID<nsIUrlClassifierPrefixSet>;
+  nsIUrlClassifierRealTimeKeyService: nsJSIID<nsIUrlClassifierRealTimeKeyService>;
   nsIUrlClassifierRemoteSettingsService: nsJSIID<nsIUrlClassifierRemoteSettingsService>;
   nsIUrlClassifierStreamUpdater: nsJSIID<nsIUrlClassifierStreamUpdater>;
   nsIUrlClassifierTestUtils: nsJSIID<nsIUrlClassifierTestUtils>;

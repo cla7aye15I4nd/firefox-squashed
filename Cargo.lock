@@ -8718,6 +8718,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "askama",
+ "bitflags 2.10.0",
  "camino",
  "cargo_metadata",
  "clap",
@@ -8751,6 +8752,7 @@ dependencies = [
  "camino",
  "cargo_metadata",
  "clap",
+ "mozilla-central-workspace-hack",
  "uniffi",
  "uniffi_bindgen",
 ]

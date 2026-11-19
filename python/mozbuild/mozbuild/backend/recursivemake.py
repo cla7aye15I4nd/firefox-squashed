@@ -1826,8 +1826,6 @@ class RecursiveMakeBackend(MakeBackend):
             else:
                 backend_file.write_once("%s_OBJS := %s\n" % (obj.name, objs_ref))
             backend_file.write("%s: %s\n" % (obj_target, objs_ref))
-        if getattr(obj, "symbols_file", None):
-            backend_file.write_once("%s: %s\n" % (obj_target, obj.symbols_file))
 
         for dep in getattr(obj, "extra_link_deps", ()):
             backend_file.write_once(
@@ -2022,8 +2020,8 @@ class RecursiveMakeBackend(MakeBackend):
                     # support. Do it here, as this is where they enter the build.
                     if f.lower().endswith((".dll", ".so", ".dylib")):
                         rules.append(
-                            "\t$(call py_action,check_binary %s,%s)"
-                            % (basename, mozpath.join(install_location, basename))
+                            f"\t$(call py_action,check_binary {basename},"
+                            f"--prebuilt {mozpath.join(install_location, basename)})"
                         )
                 backend_file.write("misc::\n%s\n" % "\n".join(rules))
 
