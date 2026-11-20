@@ -455,6 +455,28 @@ class TestRecursiveMakeBackend(BackendTester):
             other = json.load(fh)
         self.assertTrue(other["bundle"].endswith("dist/other/Test.app"))
 
+        objdir = mozpath.normsep(env.topobjdir)
+        with open(mozpath.join(env.topobjdir, "macos-bundles.json")) as fh:
+            self.assertEqual(
+                json.load(fh),
+                {
+                    "bundles": [
+                        {
+                            "spec": f"{objdir}/dist_Staged.app.bundle.json",
+                            "stage": True,
+                        },
+                        {
+                            "spec": f"{objdir}/dist_bin_Test.app.bundle.json",
+                            "stage": False,
+                        },
+                        {
+                            "spec": f"{objdir}/dist_other_Test.app.bundle.json",
+                            "stage": False,
+                        },
+                    ]
+                },
+            )
+
         backend_path = mozpath.join(env.topobjdir, "backend.mk")
         backend = open(backend_path).read()
         self.assertIn("py_action,assemble_macos_bundle Test.app", backend)
@@ -1616,8 +1638,6 @@ class TestRecursiveMakeBackend(BackendTester):
             f"CARGO_TARGET_DIR := {env.topobjdir}",
             "RUST_PROGRAMS += $(DEPTH)/i686-pc-windows-msvc/release/test-program-features.exe",
             "RUST_CARGO_PROGRAMS += test-program-features",
-            "DUMP_SYMS_TARGETS += "
-            "$(DEPTH)/i686-pc-windows-msvc/release/test-program-features.exe",
             self._cargo_deps("CARGO_PROGRAM_DEPS", ".cargo-program-spec.json"),
         ]
 
@@ -1664,7 +1684,6 @@ class TestRecursiveMakeBackend(BackendTester):
             "CARGO_TARGET_DIR := %s" % env.topobjdir,
             "RUST_PROGRAMS += $(DEPTH)/i686-pc-windows-msvc/release/target.exe",
             "RUST_CARGO_PROGRAMS += target",
-            "DUMP_SYMS_TARGETS += $(DEPTH)/i686-pc-windows-msvc/release/target.exe",
             "HOST_RUST_PROGRAMS += $(DEPTH)/i686-pc-windows-msvc/release/host.exe",
             "HOST_RUST_CARGO_PROGRAMS += host",
             self._cargo_deps(
@@ -2426,6 +2445,102 @@ class TestRecursiveMakeBackend(BackendTester):
             ["EXTRA_DSO_LDOPTS += -PDB:not-installed.pdb -IMPLIB:not-installed.lib"],
         )
 
+    def _program_ldflags(self, cc_type, subdir, **substs):
+        env = self._get_environment(
+            "program-paths",
+            substs={"OS_ARCH": "WINNT", "CC_TYPE": cc_type, **substs},
+        )
+        self._consume("program-paths", RecursiveMakeBackend, env=env)
+
+        with open(os.path.join(env.topobjdir, subdir, "backend.mk")) as fh:
+            return [l.rstrip() for l in fh if ": LDFLAGS += " in l]
+
+    def test_clang_cl_program_pdb(self):
+        self.assertEqual(
+            self._program_ldflags("clang-cl", "dist-bin"),
+            ["$(DEPTH)/dist/bin/dist-bin.prog: LDFLAGS += -PDB:dist-bin.pdb"],
+        )
+
+    def test_clang_cl_program_pdb_copy_pdbs(self):
+        self.assertEqual(
+            self._program_ldflags("clang-cl", "dist-bin", MOZ_COPY_PDBS="1"),
+            [
+                "$(DEPTH)/dist/bin/dist-bin.prog: LDFLAGS += "
+                "-PDB:../dist/bin/dist-bin.pdb"
+            ],
+        )
+
+    def test_clang_cl_simple_program_pdb_copy_pdbs(self):
+        self.assertEqual(
+            self._program_ldflags("clang-cl", "dist-bin-simple", MOZ_COPY_PDBS="1"),
+            ["simple.prog: LDFLAGS += -PDB:simple.pdb"],
+        )
+
+    def test_mingw_program_pdb(self):
+        self.assertEqual(
+            self._program_ldflags("clang", "dist-bin"),
+            [
+                "$(DEPTH)/dist/bin/dist-bin.prog: LDFLAGS += "
+                "-Wl,-pdb,../dist/bin/dist-bin.pdb"
+            ],
+        )
+
+    def test_mingw_simple_program_pdb(self):
+        self.assertEqual(
+            self._program_ldflags("clang", "dist-bin-simple"),
+            ["simple.prog: LDFLAGS += -Wl,-pdb,simple.pdb"],
+        )
+
+    def test_program_pdb_not_windows(self):
+        for subdir in ("dist-bin", "dist-bin-simple"):
+            self.assertEqual(
+                self._program_ldflags("clang", subdir, OS_ARCH="Darwin"), []
+            )
+
+    def _host_ldflags(self, name, subdir, host_cc_type="clang-cl", **substs):
+        env = self._get_environment(
+            name,
+            substs={"HOST_OS_ARCH": "WINNT", "HOST_CC_TYPE": host_cc_type, **substs},
+        )
+        self._consume(name, RecursiveMakeBackend, env=env)
+
+        with open(os.path.join(env.topobjdir, subdir, "backend.mk")) as fh:
+            return [l.rstrip() for l in fh if ": HOST_LDFLAGS += " in l]
+
+    def test_clang_cl_host_program_pdb(self):
+        self.assertEqual(
+            self._host_ldflags("host-cpp-link", "cpp"),
+            ["$(DEPTH)/dist/host/bin/cpphost: HOST_LDFLAGS += -PDB:cpphost.pdb"],
+        )
+
+    def test_clang_host_program_pdb(self):
+        self.assertEqual(
+            self._host_ldflags("host-cpp-link", "cpp", "clang"),
+            ["$(DEPTH)/dist/host/bin/cpphost: HOST_LDFLAGS += -DEBUG -PDB:cpphost.pdb"],
+        )
+
+    def test_clang_cl_host_simple_program_pdb(self):
+        self.assertEqual(
+            self._host_ldflags("host-cpp-link", "simple"),
+            ["host_asimple: HOST_LDFLAGS += -PDB:host_asimple.pdb"],
+        )
+
+    def test_clang_cl_host_shared_library_pdb(self):
+        self.assertEqual(
+            self._host_ldflags("clang-plugin", "plugin"),
+            ["libclang-plugin.so: HOST_LDFLAGS += -DEBUG -PDB:libclang-plugin.pdb"],
+        )
+
+    def test_host_pdb_not_windows(self):
+        self.assertEqual(
+            self._host_ldflags("host-cpp-link", "cpp", "clang", HOST_OS_ARCH="Linux"),
+            [],
+        )
+        self.assertEqual(
+            self._host_ldflags("clang-plugin", "plugin", "clang", HOST_OS_ARCH="Linux"),
+            [],
+        )
+
     def test_per_source_object_deps(self):
         env = self._consume("per-source-object-deps", RecursiveMakeBackend)
 
@@ -2451,52 +2566,134 @@ class TestRecursiveMakeBackend(BackendTester):
         self.assertIn("unprofiled.$(OBJ_SUFFIX): COMPUTED_PGO_CFLAGS :=\n", lines)
         self.assertNotIn("profiled.$(OBJ_SUFFIX): COMPUTED_PGO_CFLAGS :=\n", lines)
 
-    def test_dump_syms_targets(self):
-        env = self._consume("program-paths", RecursiveMakeBackend)
+    def _syms_rules(self, name, target):
+        return [
+            f"syms:: {name}_syms.track",
+            f"{name}_syms.track: {target}",
+            "\t$(call py_action,dumpsymbols $@,$(abspath $<) "
+            "$(abspath $@) $(DUMP_SYMBOLS_FLAGS))",
+        ]
 
-        expected = {
-            "dist-bin": "DUMP_SYMS_TARGETS += $(DEPTH)/dist/bin/dist-bin.prog\n",
-            "dist-subdir": "DUMP_SYMS_TARGETS += "
-            "$(DEPTH)/dist/bin/foo/dist-subdir.prog\n",
-            "not-installed": "DUMP_SYMS_TARGETS += not-installed.prog\n",
-            "dist-bin-simple": "DUMP_SYMS_TARGETS += simple.prog\n",
-        }
-        for subdir, line in expected.items():
+    def _syms_lines(self, name, subdirs, **substs):
+        env = self._get_environment(name, substs=substs)
+        self._consume(name, RecursiveMakeBackend, env=env)
+        result = {}
+        for subdir in subdirs:
             with open(os.path.join(env.topobjdir, subdir, "backend.mk")) as fh:
-                self.assertIn(line, fh.readlines())
+                result[subdir] = [
+                    l.rstrip("\n")
+                    for l in fh
+                    if "syms" in l or "PDB" in l or "dumpsymbols" in l
+                ]
+        return result
 
-        for subdir in ("final-target", "dist-bin-sibling"):
-            with open(os.path.join(env.topobjdir, subdir, "backend.mk")) as fh:
-                self.assertNotIn("DUMP_SYMS_TARGETS", fh.read())
+    def test_dump_syms_rules(self):
+        rules = self._syms_rules
+        self.assertEqual(
+            self._syms_lines(
+                "program-paths",
+                (
+                    "dist-bin",
+                    "dist-subdir",
+                    "not-installed",
+                    "dist-bin-simple",
+                    "final-target",
+                    "dist-bin-sibling",
+                ),
+                MOZ_CRASHREPORTER="1",
+            ),
+            {
+                "dist-bin": rules("dist-bin.prog", "$(DEPTH)/dist/bin/dist-bin.prog"),
+                "dist-subdir": rules(
+                    "dist-subdir.prog", "$(DEPTH)/dist/bin/foo/dist-subdir.prog"
+                ),
+                "not-installed": rules("not-installed.prog", "not-installed.prog"),
+                "dist-bin-simple": rules("simple.prog", "simple.prog"),
+                "final-target": [],
+                "dist-bin-sibling": [],
+            },
+        )
+
+    def test_dump_syms_no_crashreporter(self):
+        self.assertEqual(
+            self._syms_lines("program-paths", ("dist-bin", "dist-bin-simple")),
+            {"dist-bin": [], "dist-bin-simple": []},
+        )
+
+    def test_dump_syms_copy_pdbs(self):
+        self.assertEqual(
+            self._syms_lines(
+                "program-paths",
+                ("dist-bin", "dist-bin-simple"),
+                MOZ_CRASHREPORTER="1",
+                MOZ_COPY_PDBS="1",
+            ),
+            {
+                "dist-bin": [
+                    "MAIN_PDB_FILES += $(DEPTH)/dist/bin/dist-bin.pdb",
+                    "MAIN_PDB_DEST ?= $(FINAL_TARGET)",
+                    "MAIN_PDB_TARGET = syms",
+                    "INSTALL_TARGETS += MAIN_PDB",
+                ],
+                "dist-bin-simple": [
+                    "MAIN_PDB_FILES += simple.pdb",
+                    "MAIN_PDB_DEST ?= $(FINAL_TARGET)",
+                    "MAIN_PDB_TARGET = syms",
+                    "INSTALL_TARGETS += MAIN_PDB",
+                ],
+            },
+        )
+
+    def test_dump_syms_copy_pdbs_cpp_unit_tests(self):
+        self.assertEqual(
+            self._syms_lines("cpp-unit-tests", ("",), MOZ_COPY_PDBS="1"),
+            {
+                "": [
+                    "CPP_UNIT_TESTS_PDB_FILES += TestOne.pdb",
+                    "CPP_UNIT_TESTS_PDB_DEST = $(DIST)/cppunittests",
+                    "CPP_UNIT_TESTS_PDB_TARGET = syms",
+                    "INSTALL_TARGETS += CPP_UNIT_TESTS_PDB",
+                    "MAIN_PDB_FILES += TestOne.pdb",
+                    "MAIN_PDB_DEST ?= $(FINAL_TARGET)",
+                    "MAIN_PDB_TARGET = syms",
+                    "INSTALL_TARGETS += MAIN_PDB",
+                    "CPP_UNIT_TESTS_PDB_FILES += TestTwo.pdb",
+                    "MAIN_PDB_FILES += TestTwo.pdb",
+                ]
+            },
+        )
 
     def test_dump_syms_profile_generate(self):
-        env = self._get_environment(
-            "program-paths", substs={"MOZ_PROFILE_GENERATE": "1"}
+        self.assertEqual(
+            self._syms_lines(
+                "program-paths",
+                ("dist-bin-simple", "dist-bin"),
+                MOZ_CRASHREPORTER="1",
+                MOZ_PROFILE_GENERATE="1",
+            ),
+            {
+                "dist-bin-simple": [],
+                "dist-bin": self._syms_rules(
+                    "dist-bin.prog", "$(DEPTH)/dist/bin/dist-bin.prog"
+                ),
+            },
         )
-        self._consume("program-paths", RecursiveMakeBackend, env=env)
-
-        with open(os.path.join(env.topobjdir, "dist-bin-simple", "backend.mk")) as fh:
-            self.assertNotIn("DUMP_SYMS_TARGETS", fh.read())
-        with open(os.path.join(env.topobjdir, "dist-bin", "backend.mk")) as fh:
-            self.assertIn(
-                "DUMP_SYMS_TARGETS += $(DEPTH)/dist/bin/dist-bin.prog\n",
-                fh.readlines(),
-            )
 
     def test_dump_syms_output_category(self):
-        env = self._consume("shared-library-output-category", RecursiveMakeBackend)
-
-        with open(
-            os.path.join(env.topobjdir, "without-output-category", "backend.mk")
-        ) as fh:
-            self.assertIn(
-                "DUMP_SYMS_TARGETS += $(DEPTH)/dist/bin/libwithout-category.so\n",
-                fh.readlines(),
-            )
-        with open(
-            os.path.join(env.topobjdir, "with-output-category", "backend.mk")
-        ) as fh:
-            self.assertNotIn("DUMP_SYMS_TARGETS", fh.read())
+        self.assertEqual(
+            self._syms_lines(
+                "shared-library-output-category",
+                ("without-output-category", "with-output-category"),
+                MOZ_CRASHREPORTER="1",
+            ),
+            {
+                "without-output-category": self._syms_rules(
+                    "libwithout-category.so",
+                    "$(DEPTH)/dist/bin/libwithout-category.so",
+                ),
+                "with-output-category": [],
+            },
+        )
 
     def test_lto_object_path(self):
         env = self._consume("lto-object-path", RecursiveMakeBackend)
@@ -2632,6 +2829,23 @@ class TestRecursiveMakeBackend(BackendTester):
             backend_mk("dist-subdir"),
         )
         self.assertNotIn("IMPORT_LIB_DEST", backend_mk("not-installed"))
+
+    def test_compiler_plugin(self):
+        env = self._consume("clang-plugin", RecursiveMakeBackend)
+
+        with open(mozpath.join(env.topobjdir, "root-deps.mk")) as fh:
+            lines = sorted(l.strip() for l in fh if l.rstrip().endswith("plugin/host"))
+        self.assertEqual(
+            lines,
+            [
+                "consumer/target-objects: plugin/host",
+                "plugin/tests/target-objects: plugin/host",
+                "program/target-objects: plugin/host",
+                "program/target: plugin/host",
+                "wasm/pre-compile: plugin/host",
+                "wasm/target-objects: plugin/host",
+            ],
+        )
 
     def test_licenses_json(self):
         """LICENSES declarations are aggregated into licenses.json."""

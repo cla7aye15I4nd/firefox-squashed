@@ -34,6 +34,7 @@ var gExceptionPaths = [
   "chrome://activity-stream/content/data/content/assets/tabs-top-zap-transparent.svg",
   "chrome://activity-stream/content/data/content/assets/euo-tab-orientation.svg",
   "chrome://activity-stream/content/data/content/assets/euo-chatbot.svg",
+  "chrome://browser/content/aiwindow/assets/agent-watch-kit.svg",
   "chrome://browser/content/assets/moz-vpn.svg",
   "chrome://browser/content/assets/vpn-logo.svg",
   "chrome://browser/content/asrouter/assets/fox-with-box-on-cloud.svg",
@@ -340,10 +341,6 @@ var allowlist = [
 
   // Bug 2078933: The widget dashboard will generate widgets with this module.
   { file: "moz-src:///browser/components/widgets/WidgetGenerator.sys.mjs" },
-  // Bug 2085180 - Implement basics of DigestManager
-  {
-    file: "moz-src:///browser/components/aiwindow/models/memories/digests/DigestManager.sys.mjs",
-  },
 ];
 
 if (AppConstants.NIGHTLY_BUILD) {
@@ -429,12 +426,6 @@ if (!isDevtools) {
   if (!AppConstants.ENABLE_WEBDRIVER) {
     allowlist.add("moz-src:///devtools/platform/jsdebugger.sys.mjs");
   }
-}
-
-if (AppConstants.MOZ_CODE_COVERAGE) {
-  allowlist.add(
-    "chrome://remote/content/marionette/PerTestCoverageUtils.sys.mjs"
-  );
 }
 
 const gInterestingCategories = new Set([

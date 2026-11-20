@@ -3,10 +3,10 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { AITabStore } from "moz-src:///browser/components/aiwindow/ui/modules/AITabStore.sys.mjs";
+import { isAITabPageEditable } from "moz-src:///browser/components/aiwindow/ui/modules/AITabPageTypes.sys.mjs";
 import { getHeadingFont } from "moz-src:///browser/components/aiwindow/ui/modules/AITabHeadingFont.sys.mjs";
 import { ConversationStore } from "moz-src:///browser/components/aiwindow/ui/modules/ConversationStore.sys.mjs";
 import { getSmartPageName } from "chrome://browser/content/aiwindow/modules/TrustedInternalURLs.mjs";
-import { A2UI } from "../modules/A2UI.mjs";
 
 /**
  * A stored AI Tab record.
@@ -17,7 +17,7 @@ import { A2UI } from "../modules/A2UI.mjs";
 /**
  * A page prepared for rendering.
  *
- * @typedef {import("../modules/A2UI.mjs").HydratedAITabData} HydratedAITabData
+ * @typedef {import("../modules/A2UI.sys.mjs").HydratedAITabData} HydratedAITabData
  */
 
 /**
@@ -30,10 +30,12 @@ import { A2UI } from "../modules/A2UI.mjs";
  */
 
 /**
- * Page data sent to the viewer, including hydrated content and a localized date.
+ * Page data sent to the viewer, including hydrated content, a localized date,
+ * and whether its page type allows the page to be revised.
  *
  * @typedef {AITabRow & HydratedAITabData & {
- *   createdAtLabel: string
+ *   createdAtLabel: string,
+ *   editable: boolean
  * }} AITabData
  */
 
@@ -50,6 +52,7 @@ const SMART_PAGE_ICON_URL =
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  A2UI: "moz-src:///browser/components/aiwindow/ui/modules/A2UI.sys.mjs",
   AIWINDOW_URL:
     "moz-src:///browser/components/aiwindow/ui/modules/AIWindow.sys.mjs",
   AITab: "moz-src:///browser/components/aiwindow/models/aitab/AITab.sys.mjs",
@@ -277,13 +280,14 @@ export class AITabParent extends JSWindowActorParent {
       return null;
     }
 
-    const a2ui = new A2UI(surface);
+    const a2ui = new lazy.A2UI(surface);
     const page = a2ui.toUI();
 
     return {
       ...pageData,
       ...page,
       createdAtLabel: formatCreatedAt(pageData.createdAt),
+      editable: isAITabPageEditable(pageData.pageType),
     };
   }
 
