@@ -2695,6 +2695,14 @@ void LIRGenerator::visitBigIntMod(MBigIntMod* ins) {
   assignSafepoint(lir, ins);
 }
 
+void LIRGenerator::visitBigIntMulMod(MBigIntMulMod* ins) {
+  auto* lir = new (alloc()) LBigIntMulMod(useRegisterAtStart(ins->lhs()),
+                                          useRegisterAtStart(ins->rhs()),
+                                          useRegisterAtStart(ins->modulus()));
+  defineReturn(lir, ins);
+  assignSafepoint(lir, ins);
+}
+
 void LIRGenerator::visitBigIntPow(MBigIntPow* ins) {
   auto* lir = new (alloc()) LBigIntPow(useRegisterAtStart(ins->lhs()),
                                        useRegisterAtStart(ins->rhs()));
@@ -7463,6 +7471,8 @@ void LIRGenerator::visitWasmReturnCall(MWasmReturnCall* ins) {
 }
 
 void LIRGenerator::visitWasmCallLandingPrePad(MWasmCallLandingPrePad* ins) {
+  // Exception handling jumps indirectly to the start of this block.
+  ins->block()->lir()->setIsIndirectJumpTarget();
   add(new (alloc()) LWasmCallLandingPrePad, ins);
 }
 
