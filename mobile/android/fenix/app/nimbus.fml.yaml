@@ -1069,6 +1069,29 @@ features:
           Whether or not to enable the tab groups strip.
         type: Boolean
         default: false
+  tab-groups-menu:
+    description: Control whether Tab Group options are shown in the browser menu.
+    contacts:
+      - jdelorenzo@mozilla.com
+    variables:
+      enabled:
+        description: >
+          Whether or not to show Tab Group options in the browser menu.
+        type: Boolean
+        default: false
+    defaults:
+      - channel: release
+        value:
+          enabled: false
+      - channel: beta
+        value:
+          enabled: false
+      - channel: nightly
+        value:
+          enabled: true
+      - channel: developer
+        value:
+          enabled: true
 
   marketing-onboarding-card:
     no-lint: [MISSING_CONTACTS]
@@ -1422,22 +1445,6 @@ features:
         type: Boolean
         default: true
 
-  oled-theme:
-    no-lint: [MISSING_CONTACTS]
-    description: Feature to provide the OLED theme option for users on Firefox for Android.
-    variables:
-      enabled:
-        description: If true, the OLED theme option is shown.
-        type: Boolean
-        default: false
-    defaults:
-      - channel: developer
-        value:
-          enabled: true
-      - channel: nightly
-        value:
-          enabled: true
-
   pairing-signin-prompt:
     description: >
       Controls the pairing sync card shown during initial onboarding to users who installed Firefox
@@ -1541,6 +1548,21 @@ features:
           If true, videos requested for picture-in-picture are cloned into a picture-in-picture window.
         type: Boolean
         default: false
+
+  qwac-ui:
+    contacts:
+      - lmccracken@mozilla.com
+    description: >
+      Feature that shows the certificate details of the current website in the Trust Panel, including the EU trust mark
+      for websites that present a Qualified Website Authentication Certificate (QWAC).
+    variables:
+      enabled:
+        description: >
+          If true, the Trust Panel header shows a "Secure connection" link that opens the certificate details sub-page,
+          which shows the EU trust mark for websites that present a QWAC. If false, the Trust Panel shows the previous
+          connection security row instead, and neither the sub-page nor the EU trust mark is shown.
+        type: Boolean
+        default: true
 
 types:
   objects:

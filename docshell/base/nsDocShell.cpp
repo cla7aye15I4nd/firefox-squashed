@@ -1332,14 +1332,9 @@ static LoadingSessionHistoryInfo CreateLoadingEntryForJavascriptURL(
   loadingEntry.mTriggeringNavigationType = Some(NavigationType::Replace);
   loadingEntry.mReplacesActiveEntry = !!aActiveEntry;
 
-  // https://html.spec.whatwg.org/#update-document-for-history-step-application
-  // The replaced entry is the previous entry for the new document's
-  // activation, unless it belonged to the initial about:blank document.
   loadingEntry.mPreviousEntry =
-      aOldDocument.IsInitialDocument() || !aActiveEntry
-          ? Some(PreviousSessionHistoryInfo{})
-          : PreviousSessionHistoryInfo::CreateValidatedPreviousEntry(
-                info, Some(*aActiveEntry), Some(NavigationType::Replace));
+      PreviousSessionHistoryInfo::CreateValidatedPreviousEntry(
+          aNewDocument, aOldDocument, aActiveEntry);
 
   // The old document might not have entries, in which case the new entry gets
   // appended.
@@ -3874,6 +3869,9 @@ nsDocShell::DisplayLoadError(nsresult aError, nsIURI* aURI,
         break;
       case NS_ERROR_BASIC_HTTP_AUTH_DISABLED:
         error = "basicHttpAuthDisabled";
+        break;
+      case NS_ERROR_HTTP_AUTH_SCHEME_DISABLED:
+        error = "httpAuthSchemeDisabled";
         break;
       default:
         break;
@@ -6434,6 +6432,7 @@ nsresult nsDocShell::FilterStatusForErrorPage(
       aStatus == NS_ERROR_NET_HTTP2_SENT_GOAWAY ||
       aStatus == NS_ERROR_NET_HTTP3_PROTOCOL_ERROR ||
       aStatus == NS_ERROR_BASIC_HTTP_AUTH_DISABLED ||
+      aStatus == NS_ERROR_HTTP_AUTH_SCHEME_DISABLED ||
       aStatus == NS_ERROR_DOM_BAD_URI || aStatus == NS_ERROR_FILE_NOT_FOUND ||
       aStatus == NS_ERROR_FILE_ACCESS_DENIED ||
       aStatus == NS_ERROR_CORRUPTED_CONTENT ||
