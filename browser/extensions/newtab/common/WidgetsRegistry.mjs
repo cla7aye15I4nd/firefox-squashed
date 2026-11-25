@@ -158,11 +158,6 @@ export const PREF_WIDGETS_SYSTEM_CROSSWORD_ENABLED =
   "widgets.system.crossword.enabled";
 export const PREF_FRAMED_WIDGETS_ALLOWED_HOST_SUFFIXES =
   "widgets.framed.allowedHostSuffixes";
-export const PREF_WIDGETS_STOCKS_ENABLED = "widgets.stocks.enabled";
-export const PREF_STOCKS_SIZE = "widgets.stocks.size";
-export const PREF_STOCKS_WATCHLIST = "widgets.stocks.watchlist";
-export const PREF_WIDGETS_SYSTEM_STOCKS_ENABLED =
-  "widgets.system.stocks.enabled";
 export const PREF_WIDGETS_PICTURE_OF_THE_DAY_ENABLED =
   "widgets.pictureOfTheDay.enabled";
 export const PREF_PICTURE_OF_THE_DAY_SIZE = "widgets.pictureOfTheDay.size";
@@ -407,25 +402,6 @@ export const WIDGET_REGISTRY = [
     widgetsSettingsEnabledKey: "crosswordEnabled",
     trainhopNamespace: "widgetCrossword",
     framed: true,
-  },
-  {
-    id: "stocks",
-    telemetryName: "stocks",
-    customizeL10nId: "newtab-custom-widget-stocks-toggle2",
-    customizeEventSource: "WIDGET_STOCKS",
-    order: 7,
-    enabledPref: PREF_WIDGETS_STOCKS_ENABLED,
-    sizePref: PREF_STOCKS_SIZE,
-    defaultSize: "medium",
-    validSizes: ["small", "medium", "large"],
-    hasSidebar: false,
-    systemEnabledPref: PREF_WIDGETS_SYSTEM_STOCKS_ENABLED,
-    trainhopEnabledKey: "stocksEnabled",
-    trainhopSizeKey: "stocksSize",
-    trainhopSidebarKey: null,
-    widgetsSettingsVisibleKey: "stocksVisible",
-    widgetsSettingsEnabledKey: "stocksEnabled",
-    trainhopNamespace: "widgetStocks",
   },
   {
     id: "recentSearches",
@@ -695,6 +671,48 @@ export const FRAMED_WIDGETS = WIDGET_REGISTRY.filter(w => w.framed);
  */
 export const FRAMED_WIDGET_SANDBOX =
   "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox";
+
+/**
+ * Returns true if the endpoint starts with one of the comma-separated prefixes
+ * in the discoverystream.endpoints pref.
+ *
+ * @param {object} prefs - current pref values from the Redux store
+ * @param {string} endpoint
+ * @returns {boolean}
+ */
+export function isEndpointAllowlisted(prefs, endpoint) {
+  return (prefs["discoverystream.endpoints"] ?? "")
+    .split(",")
+    .map(item => item.trim())
+    .filter(item => item)
+    .some(prefix => endpoint.startsWith(prefix));
+}
+
+export const FRAMED_STAGE_MERINO_ORIGIN =
+  "https://merino.services.allizom.org/";
+
+/**
+ * Returns true if framed widgets may load their manifest from the stage
+ * endpoint (widgets.framed.endpoint.stage): on Nightly when it points at stage
+ * Merino, or on any build once it is covered by the discoverystream.endpoints
+ * allowlist. This is not added to that allowlist's default because the list is
+ * shared with other feeds, and a user value (set by Nimbus or the staging ads
+ * toggle) would hide a new default.
+ *
+ * @param {object} prefs - current pref values from the Redux store
+ * @param {boolean} isNightlyBuild - AppConstants.NIGHTLY_BUILD
+ * @returns {boolean}
+ */
+export function isFramedStageAllowed(prefs, isNightlyBuild) {
+  const endpoint = prefs["widgets.framed.endpoint.stage"];
+  if (!endpoint) {
+    return false;
+  }
+  return (
+    (isNightlyBuild && endpoint.startsWith(FRAMED_STAGE_MERINO_ORIGIN)) ||
+    isEndpointAllowlisted(prefs, endpoint)
+  );
+}
 
 /**
  * Returns true if a framed widget may load this URL. Framed widget URLs set the

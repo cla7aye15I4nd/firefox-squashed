@@ -237,11 +237,17 @@ each access to a member that the class defines is an error.
 Convert the script to a module if you can. Other files can then import the
 class's type, but TypeScript reports errors in the module itself only if the
 project includes it (see
-[The tsconfig.json File](enabling.md#the-tsconfigjson-file)). Until the script
-is a module, declare an interface for the element in the project's shared
-declarations (see
+[The tsconfig.json File](enabling.md#the-tsconfigjson-file)).
+
+Until the script is a module, declare an interface for the element in the
+project's shared declarations (see
 [Shared Declarations](enabling.md#shared-declarations)).
 {searchfox}`browser/components/tabbrowser/types/elements.ts` is an example.
+
+To find the members the interface needs, start with an empty one, such as
+`interface MozExampleItem extends XULElement {}`. Then
+`./mach ts summary path/to/dir --members MozExampleItem` lists the members
+TypeScript can't find on it.
 
 {searchfox}`tools/@types/lib.gecko.augmentations.d.ts` declares
 `MozXULElement`, `MozHTMLElement`, `MozBrowser` and the `MozElements` object for
@@ -254,6 +260,10 @@ That file affects every project, so check all of them afterwards:
 ```shell
 ./mach lint -l typescript .
 ```
+
+That run doesn't report errors in `lib.gecko.augmentations.d.ts` itself. To
+check the file, run `./mach ts check tools/@types/check` (see
+[Files Outside the Project Directory](../lint/linters/typescript.md#files-outside-the-project-directory)).
 
 ### Files with API Documentation
 

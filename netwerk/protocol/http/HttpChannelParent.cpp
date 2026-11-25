@@ -290,13 +290,6 @@ void HttpChannelParent::CleanupBackgroundChannel() {
   }
 }
 
-base::ProcessId HttpChannelParent::OtherPid() const {
-  if (mIPCClosed) {
-    return 0;
-  }
-  return PHttpChannelParent::OtherPid();
-}
-
 //-----------------------------------------------------------------------------
 // HttpChannelParent::nsISupports
 //-----------------------------------------------------------------------------
@@ -637,9 +630,7 @@ bool HttpChannelParent::DoAsyncOpen(
   if (priority != nsISupportsPriority::PRIORITY_NORMAL) {
     httpChannel->SetPriority(priority);
   }
-  if (classOfService.Flags() || classOfService.Incremental()) {
-    httpChannel->SetClassOfService(classOfService);
-  }
+  httpChannel->SetClassOfService(classOfService);
   httpChannel->SetRedirectionLimit(redirectionLimit);
   httpChannel->SetThirdPartyFlags(thirdPartyFlags);
   httpChannel->SetAllowSpdy(allowSpdy);

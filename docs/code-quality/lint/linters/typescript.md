@@ -78,6 +78,15 @@ listed in `typescript.yml`. To check an unlisted project, run:
 ./mach ts check path/to/dir
 ```
 
+An unlisted project usually still has errors, which makes it hard to see
+which errors a change added or removed. You can save a run before the change,
+and then compare the run after it with the saved one:
+
+```shell
+./mach ts summary path/to/dir --save before.txt
+./mach ts summary path/to/dir --diff before.txt
+```
+
 ### Files Outside the Project Directory
 
 A project's `tsconfig.json` can include a file from another directory, such as
@@ -91,6 +100,22 @@ The same applies when you change the types that a module exports. A caller in
 another project can break, and the linter won't check that project. After
 either kind of change, check every listed project with
 `./mach lint -l typescript .`.
+
+That run checks the code that uses a declaration file under `tools/@types`, but
+not the file itself unless a project lists it in `include`. A project reports
+errors only in the files that its `include` list matches, and projects load
+most of these files through `tools/@types/index.d.ts` without listing them, e.g.
+`lib.gecko.augmentations.d.ts` and the generated `lib.gecko.*.d.ts` files. So
+an unknown type name in such a file reads as `any`, and a conflicting second
+declaration of a name can go unreported. To check the declaration files
+themselves, run:
+
+```shell
+./mach ts check tools/@types/check
+```
+
+That project isn't listed in `typescript.yml`, and it reports errors that the
+files already have, so compare its output before and after your change.
 
 ### In CI
 
