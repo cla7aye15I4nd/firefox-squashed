@@ -254,7 +254,6 @@ internal fun Homepage(
                             if (topSiteState != null) {
                                 TopSitesSection(
                                     state = topSiteState,
-                                    showHeader = showTopSitesHeader,
                                     interactor = interactor,
                                     onTopSitesItemBound = onTopSitesItemBound,
                                     onAddShortcutClicked = {
@@ -280,6 +279,8 @@ internal fun Homepage(
                                 SportsWidget(
                                     state = sportsWidgetState,
                                     modifier = Modifier.padding(top = FirefoxTheme.layout.space.static500),
+                                    onMatchClicked = interactor::onSportsWidgetMatchClicked,
+                                    onMatchesAndResults = interactor::onSportsWidgetMatchesAndResultsClicked,
                                     onWallpapers = interactor::onSportsWidgetWallpapersClicked,
                                     onRemove = interactor::onSportsWidgetRemoveClicked,
                                 )
@@ -491,27 +492,10 @@ private fun BannerCardSection(
 @Composable
 private fun TopSitesSection(
     state: TopSiteState,
-    showHeader: Boolean = true,
     interactor: TopSiteInteractor,
     onTopSitesItemBound: () -> Unit,
     onAddShortcutClicked: () -> Unit,
 ) {
-    if (showHeader) {
-        HomeSectionHeader(
-            headerText = stringResource(R.string.homepage_shortcuts_title),
-            modifier = Modifier.padding(horizontal = horizontalMargin),
-            description = stringResource(R.string.homepage_shortcuts_show_all_content_description),
-            onButtonClick =
-                if (state.showShortcutsLibraryButton) {
-                    interactor::onShowAllTopSitesClicked
-                } else {
-                    null
-                },
-        )
-
-        Spacer(Modifier.height(16.dp))
-    }
-
     TopSites(
         state = state,
         interactor = interactor,
@@ -724,7 +708,6 @@ private fun HomepagePreview() {
                         setupChecklistState = null,
                         isSearchInProgress = false,
                         bottomPadding = 68,
-                        showTopSitesHeader = true,
                     ),
                 interactor = FakeHomepagePreview.homepageInteractor,
                 onCollectionsMigrationCardAction = {},
@@ -765,7 +748,6 @@ private fun HomepageBannerPreview() {
                         setupChecklistState = null,
                         isSearchInProgress = false,
                         bottomPadding = 68,
-                        showTopSitesHeader = true,
                     ),
                 interactor = FakeHomepagePreview.homepageInteractor,
                 onCollectionsMigrationCardAction = {},
@@ -797,7 +779,6 @@ private fun HomepagePreviewCollections() {
                         setupChecklistState = null,
                         isSearchInProgress = false,
                         bottomPadding = 68,
-                        showTopSitesHeader = true,
                     ),
                 interactor = FakeHomepagePreview.homepageInteractor,
                 onCollectionsMigrationCardAction = {},
@@ -829,7 +810,6 @@ private fun HomepageCollectionsMigrationCardPreview() {
                         setupChecklistState = null,
                         isSearchInProgress = false,
                         bottomPadding = 68,
-                        showTopSitesHeader = true,
                     ),
                 interactor = FakeHomepagePreview.homepageInteractor,
                 onCollectionsMigrationCardAction = {},
@@ -864,7 +844,6 @@ private fun MinimalHomepagePreview() {
                         setupChecklistState = null,
                         isSearchInProgress = false,
                         bottomPadding = 68,
-                        showTopSitesHeader = true,
                     ),
                 interactor = FakeHomepagePreview.homepageInteractor,
                 onCollectionsMigrationCardAction = {},

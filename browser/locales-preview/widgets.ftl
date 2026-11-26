@@ -3,13 +3,13 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 # Title of the widgets sidebar panel.
-widget-studio-title = Widget Studio
+custom-widgets-title = Custom Widgets
 
-menu-view-widget-studio =
-  .label = Widget Studio
+menu-view-custom-widgets =
+  .label = Custom Widgets
 
-sidebar-menu-widget-studio-label =
-  .label = Widget Studio
+sidebar-menu-custom-widgets-label =
+  .label = Custom Widgets
 
 # Heading and description of the "Custom widgets" group in the AI controls
 # section of Settings, shown to people who turned on custom widgets in Firefox
@@ -30,7 +30,7 @@ preferences-ai-controls-block-confirmation-custom-widgets = Custom widgets
 
 # Opens the text field for describing a widget to make.
 widget-studio-compose-button =
-  .title = New widget
+  .label = Create a widget
 
 # Opens Mozilla Connect to share feedback about custom widgets.
 widget-studio-menu-share-feedback = Share Feedback
@@ -98,6 +98,73 @@ experimental-features-group-custom-widgets =
 experimental-features-custom-widgets =
     .label = Custom widgets
 experimental-features-custom-widgets-description = Build your own widgets for { -firefox-home-brand-name } or your sidebar just by describing what you want. For example, a habit tracker, word count tool, or dad joke generator. Each widget stays on your device. We don’t store your prompts, widgets, or widget data, and we don’t use your data to train AI. <a data-l10n-name="connect">Share feedback</a>
+
+# Labels the placeholder of a widget being made.
+widget-placeholder-building =
+  .aria-label = Building your widget
+
+# Labels the placeholder of a widget that couldn’t be made.
+widget-placeholder-failed =
+  .aria-label = Your widget couldn’t be created
+
+# Stops making the widget and reopens its prompt.
+widget-placeholder-cancel-button =
+  .title = Cancel
+  .aria-label = Cancel
+
+# Reopens the prompt of a widget that couldn’t be made.
+widget-placeholder-edit-button =
+  .label = Try again
+
+## Errors shown on the placeholder of a widget that couldn’t be created. Each
+## has a heading that says what went wrong and a message that says what to do.
+
+# Custom widgets are turned off in AI Controls. “AI controls” in the heading
+# refers to the AI controls section of Settings.
+widget-generation-error-blocked =
+    .heading = Your current AI controls block custom widgets
+    .message = Change your settings to create a custom widget.
+
+# The account can’t be verified.
+widget-generation-error-auth =
+    .heading = Couldn’t confirm your account
+    .message = Check your connection or sign in again.
+
+# The widget service is unavailable or has no room for more requests, or the
+# widget was made but couldn’t be added.
+widget-generation-error-service =
+    .heading = Something went wrong on our end
+    .message = Try again in a few minutes.
+
+# The account reached its daily limit.
+widget-generation-error-budget =
+    .heading = Daily widget limit reached
+    .message = Try again tomorrow.
+
+# Too many widgets were requested in a short time.
+widget-generation-error-rate-limit =
+    .heading = Widget creation is temporarily paused
+    .message = Try again in a few minutes.
+
+# The network blocks the widget service.
+widget-generation-error-network =
+    .heading = We’re having trouble connecting to the widget service
+    .message = Check your network connection.
+
+# The widget couldn’t be made from the prompt.
+widget-generation-error-generation =
+    .heading = Couldn’t create this widget
+    .message = Try describing it a different way or adding more details about what it should show or do.
+
+# The request needs more than a widget can do, or doesn’t describe a widget.
+widget-generation-error-unsupported =
+    .heading = A widget can’t handle that request
+    .message = Try a different idea.
+
+# The request goes against the acceptable use policy.
+widget-generation-error-policy =
+    .heading = We can’t help with this request
+    .message = Try asking something else.
 
 ## Prompt shown in Widget Studio when nobody is signed in.
 

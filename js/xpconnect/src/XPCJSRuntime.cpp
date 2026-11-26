@@ -1513,7 +1513,7 @@ static void ReportZoneStats(const JS::ZoneStats& zStats,
                  "Shared compiled regexp data.");
 
   ZRREPORT_BYTES(pathPrefix + "zone-object"_ns, zStats.zoneObject,
-                 "The JS::Zone object itself.");
+                 "The JS::Zone object itself and its atom cache.");
 
   ZRREPORT_BYTES(pathPrefix + "regexp-zone"_ns, zStats.regexpZone,
                  "The regexp zone and regexp data.");
@@ -2017,6 +2017,10 @@ void ReportJSRuntimeExplicitTreeStats(const JS::RuntimeStats& rtStats,
                 rtStats.runtime.uncompressedSourceCache,
                 "The uncompressed source code cache.");
 
+  RREPORT_BYTES(rtPath + "runtime/runtime/megamorphic-set-prop-cache"_ns,
+                KIND_HEAP, rtStats.runtime.megamorphicSetPropCache,
+                "The megamorphic SetProp cache.");
+
   RREPORT_BYTES(rtPath + "runtime/script-data"_ns, KIND_HEAP,
                 rtStats.runtime.scriptData,
                 "The table holding script data shared in the runtime.");
@@ -2092,6 +2096,10 @@ void ReportJSRuntimeExplicitTreeStats(const JS::RuntimeStats& rtStats,
   RREPORT_BYTES(rtPath + "runtime/jit-lazylink"_ns, KIND_HEAP,
                 rtStats.runtime.jitLazyLink,
                 "IonMonkey compilations waiting for lazy linking.");
+
+  RREPORT_BYTES(rtPath + "runtime/jit-hints"_ns, KIND_HEAP,
+                rtStats.runtime.jitHints,
+                "The map of hints used to speed up JIT compilation.");
 
   if (rtTotalOut) {
     *rtTotalOut = rtTotal;

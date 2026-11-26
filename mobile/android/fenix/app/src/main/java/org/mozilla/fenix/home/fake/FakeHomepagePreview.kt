@@ -110,6 +110,14 @@ internal object FakeHomepagePreview {
                     /* no op */
                 }
 
+                override fun onSportsWidgetMatchesAndResultsClicked() {
+                    /* no op */
+                }
+
+                override fun onSportsWidgetMatchClicked() {
+                    /* no op */
+                }
+
                 override fun onSportsWidgetWallpapersClicked() {
                     /* no op */
                 }
@@ -201,10 +209,6 @@ internal object FakeHomepagePreview {
                 }
 
                 override fun onTopSiteLongClicked(topSite: TopSite) {
-                    /* no op */
-                }
-
-                override fun onShowAllTopSitesClicked() {
                     /* no op */
                 }
 

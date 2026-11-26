@@ -5,6 +5,11 @@ permalink: /changelog/
 ---
 
 # 163.0 (In Development)
+* **compose-base**
+  * 🆕 Added `CFRTooltip`, `CFR` and their supporting types in `mozilla.components.compose.base.cfr`. [Bug 2096210](https://bugzilla.mozilla.org/show_bug.cgi?id=2096210)
+* **compose-cfr**
+  * ⚠️ **Breaking change**: Renamed `CFRBox` to `CFRTooltip` and moved it, `CFR` and their supporting types to `mozilla.components.compose.base.cfr`. `CFRTooltip` now takes `mozilla.components.compose.base.cfr.IndicatorDirection` instead of `CFRPopup.IndicatorDirection`. [Bug 2096210](https://bugzilla.mozilla.org/show_bug.cgi?id=2096210)
+  * ⚠️ **Breaking change**: Removed `CFRPopupLayout` and `DismissAction`. Use `CFRTooltip` with `CFR` from compose-base for Compose anchors, or `CFRPopup` for View anchors. [Bug 2096083](https://bugzilla.mozilla.org/show_bug.cgi?id=2096083)
 * **browser-engine-gecko**
   * ⚠️ **Behavior change for embedders**: Implement `DownloadDelegate.getContentFileName` so that downloaded and shared PDFs from `content://` tabs keep their local filename. [Bug 2071966](https://bugzilla.mozilla.org/show_bug.cgi?id=2071966)
 * **compose-base**
@@ -13,6 +18,8 @@ permalink: /changelog/
   * 🆕 Added `rememberSyncedTextFieldState`, which remembers a `TextFieldState` kept in sync with a caller-owned string, for moving value-based text fields onto the state-based APIs. [Bug 2094916](https://bugzilla.mozilla.org/show_bug.cgi?id=2094916)
   * ⚠️ **Breaking change**: Removed the `visualTransformation` parameter from `TextField`. Use `SecureTextField` for password input. [Bug 2094916](https://bugzilla.mozilla.org/show_bug.cgi?id=2094916)
   * 🆕 Added `SecureTextField`, an outlined text field for password input that masks its text through a `TextObfuscationMode`. [Bug 2094916](https://bugzilla.mozilla.org/show_bug.cgi?id=2094916)
+* **feature-addons**
+  * ⚠️ **Breaking change**: Removed the "Not yet supported" section of the add-ons manager, which is no longer shown since no add-on is marked as unsupported. Removed `UnsupportedAddonsAdapter`, `UnsupportedAddonsAdapterDelegate`, `CustomViewHolder.UnsupportedSectionViewHolder` and `AddonsManagerAdapterDelegate.onNotYetSupportedSectionClicked`. Installed add-ons are now listed in the enabled or disabled section whether or not they are supported. [Bug 2095972](https://bugzilla.mozilla.org/show_bug.cgi?id=2095972)
 * **concept-engine**
   * 🆕 Added `DownloadDelegate.getContentFileName`, which returns the filename a content provider has for a `content://` URI. [Bug 2071966](https://bugzilla.mozilla.org/show_bug.cgi?id=2071966)
 * **support-ktx**

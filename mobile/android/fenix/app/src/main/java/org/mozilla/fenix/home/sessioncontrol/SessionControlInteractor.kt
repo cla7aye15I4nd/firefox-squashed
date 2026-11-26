@@ -205,10 +205,6 @@ class SessionControlInteractor(
         topSiteController.handleTopSiteLongClicked(topSite)
     }
 
-    override fun onShowAllTopSitesClicked() {
-        topSiteController.handleShowAllTopSitesClicked()
-    }
-
     override fun onExpandToggleClicked(isExpanded: Boolean) {
         topSiteController.handleExpandToggleClicked(isExpanded)
     }
@@ -373,6 +369,14 @@ class SessionControlInteractor(
 
     override fun onPrivacyReportTapped() {
         trackingProtectionController.handleProtectionStatusPillClicked()
+    }
+
+    override fun onSportsWidgetMatchesAndResultsClicked() {
+        sportsWidgetController.handleSportsWidgetMatchesAndResultsClicked()
+    }
+
+    override fun onSportsWidgetMatchClicked() {
+        sportsWidgetController.handleSportsWidgetMatchClicked()
     }
 
     override fun onSportsWidgetWallpapersClicked() {

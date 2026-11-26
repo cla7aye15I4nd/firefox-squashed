@@ -23,7 +23,7 @@ const l10nMap = new Map([
   ["viewOpenTabsSidebar", "sidebar-menu-open-tabs-label"],
   ["viewCPMSidebar", "sidebar-menu-contextual-password-manager-label"],
   ["viewResourceMonitorSidebar", "sidebar-menu-resource-monitor-label"],
-  ["viewWidgetsSidebar", "sidebar-menu-widget-studio-label"],
+  ["viewWidgetsSidebar", "sidebar-menu-custom-widgets-label"],
 ]);
 const VISIBILITY_SETTING_PREF = "sidebar.visibility";
 const EXPAND_ON_HOVER_PREF = "sidebar.expandOnHover";
@@ -291,7 +291,7 @@ export class SidebarCustomize extends SidebarPage {
             </moz-checkbox>
           </moz-fieldset>
           <moz-fieldset
-            class="customize-group medium-top-margin no-end-margin no-label"
+            class="customize-group no-top-margin no-end-margin no-label"
             ?disabled=${this.verticalTabsEnabled}
           >
             <moz-checkbox
@@ -305,7 +305,7 @@ export class SidebarCustomize extends SidebarPage {
               }
             ></moz-checkbox>
           </moz-fieldset>
-          <moz-fieldset class="customize-group medium-top-margin no-label">
+          <moz-fieldset class="customize-group no-top-margin no-label">
             <moz-checkbox
               type="checkbox"
               id="position"

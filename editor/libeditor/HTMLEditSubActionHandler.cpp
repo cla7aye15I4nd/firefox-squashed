@@ -1232,17 +1232,21 @@ Result<EditActionResult, nsresult> HTMLEditor::HandleInsertText(
       // Don't delete extant unnecessary line break because it may be inserted
       // by the web app as a private marker.
       if (preservingUnnecessaryLineBreak.isNothing()) [[likely]] {
-        nsresult rv = EnsureNoFollowingUnnecessaryLineBreak(
-            endOfInsertedText,
-            // When user inserting text, the web app may expect that nothing
-            // extant content will be deleted. Therefore, we should preserve
-            // preformatted linefeed at least.
-            PreservePreformattedLineBreak::Yes,
-            PaddingForEmptyBlock::Unnecessary, *editingHost);
-        if (NS_FAILED(rv)) {
-          NS_WARNING(
-              "HTMLEditor::EnsureNoFollowingUnnecessaryLineBreak() failed");
-          return Err(rv);
+        {
+          AutoTrackDOMPoint trackEndOfInsertedText(RangeUpdaterRef(),
+                                                   &endOfInsertedText);
+          nsresult rv = EnsureNoFollowingUnnecessaryLineBreak(
+              endOfInsertedText,
+              // When user inserting text, the web app may expect that nothing
+              // extant content will be deleted. Therefore, we should preserve
+              // preformatted linefeed at least.
+              PreservePreformattedLineBreak::Yes,
+              PaddingForEmptyBlock::Unnecessary, *editingHost);
+          if (NS_FAILED(rv)) {
+            NS_WARNING(
+                "HTMLEditor::EnsureNoFollowingUnnecessaryLineBreak() failed");
+            return Err(rv);
+          }
         }
         if (NS_WARN_IF(
                 !endOfInsertedText.IsInContentNodeAndValidInComposedDoc())) {
