@@ -4,11 +4,14 @@
 
 import hashlib
 import importlib.util
+import lzma
+import random
 import sys
 import types
 from pathlib import Path
 from unittest import mock
 
+import pytest
 from mozunit import main
 
 # Pre-populate sys.modules with stub modules for mardor so the script's
@@ -299,6 +302,23 @@ def test_removed_files_entries_are_classified(tmp_path):
     assert not [line for line in lines if "a comment line" in line]
 
 
+def test_append_remove_instructions_reverse_sorts_entries(tmp_path):
+    to_dir = tmp_path / "to"
+    _write(to_dir / "removed-files", b"a.txt\nb/\nc.txt\n")
+    manifest = tmp_path / "updatev3.manifest"
+
+    with mock.patch.object(
+        mz, "get_text_from_compressed", lambda p: Path(p).read_text()
+    ):
+        mz.append_remove_instructions(str(to_dir), str(manifest))
+
+    assert manifest.read_text().splitlines() == [
+        'remove "c.txt"',
+        'rmdir "b/"',
+        'remove "a.txt"',
+    ]
+
+
 def test_append_remove_instructions_reads_bundle_relative_removed_files(tmp_path):
     """<to>/Contents/Resources/removed-files is used when
     <to>/removed-files is absent, which is the only location on mac."""
@@ -378,6 +398,42 @@ def test_check_for_add_if_not_update_rejects_other_files():
         assert not mz.check_for_add_if_not_update(path), path
 
 
+def test_list_files_and_dirs_is_reverse_sorted(tmp_path):
+    _write(tmp_path / "added.txt", b"a")
+    _write(tmp_path / "addFeedPrefs.js", b"b")
+    _write(tmp_path / "sub/nested/deep/a.txt", b"c")
+    _write(tmp_path / "sub/b.txt", b"d")
+
+    files, dirs = mz.list_files_and_dirs(str(tmp_path))
+
+    # Byte-wise, so "added.txt" sorts above "addFeedPrefs.js" as under LC_ALL=C.
+    assert files == [
+        "sub/nested/deep/a.txt",
+        "sub/b.txt",
+        "added.txt",
+        "addFeedPrefs.js",
+    ]
+    # Every directory follows all of its children, which RemoveDir requires.
+    assert dirs == ["sub/nested/deep", "sub/nested", "sub"]
+
+
+def test_append_rmdir_instructions_removes_dirs_no_longer_shipped(tmp_path):
+    _write(tmp_path / "from/kept/a.txt", b"a")
+    _write(tmp_path / "from/gone/nested/b.txt", b"b")
+    _write(tmp_path / "from/gone/c.txt", b"c")
+    _write(tmp_path / "to/kept/a.txt", b"a")
+    manifest = tmp_path / "updatev3.manifest"
+
+    _, olddirs = mz.list_files_and_dirs(str(tmp_path / "from"))
+    _, newdirs = mz.list_files_and_dirs(str(tmp_path / "to"))
+    mz.append_rmdir_instructions(olddirs, newdirs, str(manifest))
+
+    assert manifest.read_text().splitlines() == [
+        'rmdir "gone/nested/"',
+        'rmdir "gone/"',
+    ]
+
+
 def test_download_file_succeeds_first_try(tmp_path):
     url = "https://archive.mozilla.org/firefox.mar"
     dest = str(tmp_path / "out.mar")
@@ -424,6 +480,185 @@ def test_download_file_raises_after_exhausting_retries(tmp_path):
                 raise AssertionError("Expected DownloadError to be raised")
 
     assert urlretrieve.call_count == mz.DOWNLOAD_ATTEMPTS
+
+
+def test_package_member_ignores_a_change_of_xz_options(tmp_path):
+    contents = b"same contents" * 100
+    old_xz = tmp_path / "old.xz"
+    old_xz.write_bytes(lzma.compress(contents, preset=1))
+    new_xz = tmp_path / "new.xz"
+    new_xz.write_bytes(lzma.compress(contents, preset=6))
+    assert old_xz.read_bytes() != new_xz.read_bytes()
+    partials_dir = tmp_path / "partials"
+    partials_dir.mkdir()
+    manifest = tmp_path / "updatev3.manifest"
+
+    archive = mz.package_member(
+        "a.txt", str(old_xz), str(new_xz), str(partials_dir), str(manifest)
+    )
+
+    assert archive is None
+    assert not manifest.exists()
+    assert list(partials_dir.iterdir()) == []
+
+
+def test_package_member_does_not_decompress_identical_members(tmp_path):
+    xz_bytes = lzma.compress(b"same contents")
+    old_xz = tmp_path / "old.xz"
+    old_xz.write_bytes(xz_bytes)
+    new_xz = tmp_path / "new.xz"
+    new_xz.write_bytes(xz_bytes)
+    partials_dir = tmp_path / "partials"
+    partials_dir.mkdir()
+    manifest = tmp_path / "updatev3.manifest"
+
+    with mock.patch.object(mz, "xz_cmd") as xz_cmd:
+        archive = mz.package_member(
+            "a.txt", str(old_xz), str(new_xz), str(partials_dir), str(manifest)
+        )
+
+    assert archive is None
+    xz_cmd.assert_not_called()
+    assert not manifest.exists()
+    assert list(partials_dir.iterdir()) == []
+
+
+def test_package_member_packages_an_emptied_member_in_full(tmp_path):
+    old_xz = tmp_path / "old.xz"
+    old_xz.write_bytes(lzma.compress(b"contents"))
+    new_xz = tmp_path / "new.xz"
+    new_xz.write_bytes(lzma.compress(b""))
+    partials_dir = tmp_path / "partials"
+    partials_dir.mkdir()
+    manifest = tmp_path / "updatev3.manifest"
+
+    archive = mz.package_member(
+        "a.txt", str(old_xz), str(new_xz), str(partials_dir), str(manifest)
+    )
+
+    assert archive == "a.txt"
+    assert manifest.read_text().splitlines() == ['add "a.txt"']
+    assert (partials_dir / "a.txt").read_bytes() == new_xz.read_bytes()
+
+
+def _xz_of_size(size):
+    """Generate valid xz data of the given size, which must be a multiple of 4 and at least 60."""
+    # Use a deterministic seeded payload on every run. Random bytes don't compress,
+    # so the output grows steadily with the payload and hits every valid size.
+    payload = random.Random(0).randbytes(size)
+    for n in range(size):
+        xz_bytes = lzma.compress(payload[:n])
+        if len(xz_bytes) == size:
+            return xz_bytes
+    raise ValueError(f"No xz stream of {size} bytes")
+
+
+# xz file sizes are always multiples of 4.
+@pytest.mark.parametrize(
+    "size_delta, expected_archive, expected_instruction",
+    [
+        (-4, "a.txt.patch", 'patch "a.txt.patch" "a.txt"'),
+        (0, "a.txt", 'add "a.txt"'),
+        (4, "a.txt", 'add "a.txt"'),
+    ],
+)
+def test_package_member_packages_the_smaller_of_patch_and_full_file(
+    tmp_path, size_delta, expected_archive, expected_instruction
+):
+    old_xz = tmp_path / "old.xz"
+    old_xz.write_bytes(lzma.compress(b"old contents"))
+    new_xz = tmp_path / "new.xz"
+    new_xz.write_bytes(lzma.compress(b"new contents"))
+    partials_dir = tmp_path / "partials"
+    partials_dir.mkdir()
+    manifest = tmp_path / "updatev3.manifest"
+    patch_bytes = _xz_of_size(new_xz.stat().st_size + size_delta)
+
+    def fake_create_patch(old_raw, new_raw, scratch_dir):
+        patch_xz = Path(scratch_dir) / "patch.xz"
+        patch_xz.write_bytes(patch_bytes)
+        return str(patch_xz)
+
+    with mock.patch.object(mz, "create_patch", side_effect=fake_create_patch):
+        archive = mz.package_member(
+            "a.txt", str(old_xz), str(new_xz), str(partials_dir), str(manifest)
+        )
+
+    assert archive == expected_archive
+    assert manifest.read_text().splitlines() == [expected_instruction]
+    assert [p.name for p in partials_dir.iterdir()] == [expected_archive]
+    expected_bytes = patch_bytes if size_delta < 0 else new_xz.read_bytes()
+    assert (partials_dir / expected_archive).read_bytes() == expected_bytes
+
+
+def test_reorder_instructions_uses_safer_order(tmp_path):
+    manifest = tmp_path / "updatev3.manifest"
+    manifest.write_text(
+        "\n".join([
+            'type "partial"',
+            'add "omni.ja"',
+            'patch "firefox.exe.patch" "firefox.exe"',
+            'add "mozglue.dll"',
+            'add "zz.txt"',
+            'patch "xul.dll.patch" "xul.dll"',
+            'add "dependentlibs.list"',
+            'add "aa.txt"',
+            'add "browser/omni.ja"',
+            'remove "gone.txt"',
+        ])
+        + "\n"
+    )
+
+    mz.reorder_instructions(str(manifest), "firefox")
+
+    assert manifest.read_text().splitlines() == [
+        'type "partial"',
+        'add "dependentlibs.list"',
+        'add "zz.txt"',
+        'add "aa.txt"',
+        'remove "gone.txt"',
+        'patch "xul.dll.patch" "xul.dll"',
+        'add "browser/omni.ja"',
+        'add "omni.ja"',
+        'add "mozglue.dll"',
+        'patch "firefox.exe.patch" "firefox.exe"',
+    ]
+
+
+def test_reorder_instructions_buckets_by_path_not_verb(tmp_path):
+    """Bash greps on the member path, so a removal of one of the big members
+    moves with it and can land after later add instructions. Reproduced
+    deliberately."""
+    manifest = tmp_path / "updatev3.manifest"
+    manifest.write_text('type "partial"\nremove "omni.ja"\nadd "aa.txt"\n')
+
+    mz.reorder_instructions(str(manifest), "firefox")
+
+    assert manifest.read_text().splitlines() == [
+        'type "partial"',
+        'add "aa.txt"',
+        'remove "omni.ja"',
+    ]
+
+
+def test_reorder_instructions_uses_the_app_name(tmp_path):
+    manifest = tmp_path / "updatev3.manifest"
+    manifest.write_text('type "partial"\nadd "thunderbird.exe"\nadd "zz.txt"\n')
+
+    mz.reorder_instructions(str(manifest), "thunderbird")
+
+    assert manifest.read_text().splitlines() == [
+        'type "partial"',
+        'add "zz.txt"',
+        'add "thunderbird.exe"',
+    ]
+
+
+def test_get_app_name_is_lowercased(tmp_path):
+    with mock.patch.object(
+        mz, "get_text_from_compressed", lambda p: Path(p).read_text()
+    ):
+        assert mz.get_app_name(str(FIXTURE_DIR / "to")) == "martest"
 
 
 def _process_single(tmp_path, make_partial, valid_channel_id=True, **kwargs):

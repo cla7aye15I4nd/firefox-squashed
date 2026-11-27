@@ -18622,3 +18622,153 @@ power_saving_mode:
     metadata:
       tags:
         - Battery
+
+session_storage:
+  restore_completed:
+    type: event
+    description: |
+      The saved browsing session was read at startup, also when the app starts
+      in the background. Recorded once per restore that restores at least one
+      tab, with all the values of that restore, so that the duration can be
+      compared with the size of the same restore.
+    extra_keys:
+      duration_ms:
+        type: quantity
+        description: |
+          Time to read the session file, in milliseconds, including creating
+          the engine state of each tab in the file, even tabs then discarded
+          (for example by closing inactive tabs automatically).
+      file_bytes:
+        type: quantity
+        description: Size of the session file, in bytes.
+      tabs_in_file:
+        type: quantity
+        description: Number of tabs in the file, including discarded tabs.
+      tabs_restored:
+        type: quantity
+        description: Number of tabs that were restored.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2075223
+    data_reviews:
+      - https://phabricator.services.mozilla.com/D341793
+    data_sensitivity:
+      - technical
+    notification_emails:
+      - android-probes@mozilla.com
+    expires: never
+    metadata:
+      tags:
+        - Tabs
+        - Performance
+  save_duration:
+    type: timing_distribution
+    time_unit: millisecond
+    description: |
+      Time to write the browsing session to disk. Recorded for each successful
+      save, so the sample count is the number of saves.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2075223
+    data_reviews:
+      - https://phabricator.services.mozilla.com/D341793
+    data_sensitivity:
+      - technical
+    notification_emails:
+      - android-probes@mozilla.com
+    expires: never
+    metadata:
+      tags:
+        - Tabs
+        - Performance
+  save_file_size:
+    type: memory_distribution
+    memory_unit: byte
+    description: |
+      Size of the saved browsing session file after a write. One sample per
+      successful save, so sessions that stay open for a long time give more
+      samples.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2075223
+    data_reviews:
+      - https://phabricator.services.mozilla.com/D341793
+    data_sensitivity:
+      - technical
+    notification_emails:
+      - android-probes@mozilla.com
+    expires: never
+    metadata:
+      tags:
+        - Tabs
+        - Performance
+  save_bytes_per_tab:
+    type: memory_distribution
+    memory_unit: byte
+    description: |
+      Size of the saved browsing session file after a write, divided by the
+      number of tabs written to it. Private tabs are not written. One sample per
+      successful save.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2075223
+    data_reviews:
+      - https://phabricator.services.mozilla.com/D341793
+    data_sensitivity:
+      - technical
+    notification_emails:
+      - android-probes@mozilla.com
+    expires: never
+    metadata:
+      tags:
+        - Tabs
+        - Performance
+  engine_state_length:
+    type: custom_distribution
+    range_min: 100
+    range_max: 100000000
+    bucket_count: 100
+    histogram_type: exponential
+    unit: characters
+    description: |
+      Number of characters in one tab's saved engine state, a relative measure
+      of how big it is. One sample per valid engine state read from the session
+      file, including tabs then discarded at restore. Also recorded when a tab
+      of a collection is read, including all collection tabs during the
+      one-time migration of collections to tab groups.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2075223
+    data_reviews:
+      - https://phabricator.services.mozilla.com/D341794
+    data_sensitivity:
+      - technical
+    notification_emails:
+      - android-probes@mozilla.com
+    expires: never
+    metadata:
+      tags:
+        - Tabs
+        - Performance
+  history_entries:
+    type: custom_distribution
+    range_min: 1
+    range_max: 60
+    bucket_count: 60
+    histogram_type: linear
+    unit: entries
+    description: |
+      Number of history entries in one tab's saved engine state. One sample
+      per valid engine state read from the session file, including tabs then
+      discarded at restore. Also recorded when a tab of a collection is read,
+      including all collection tabs during the one-time migration of
+      collections to tab groups. Gecko caps this at 50
+      (browser.sessionhistory.max_entries).
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2075223
+    data_reviews:
+      - https://phabricator.services.mozilla.com/D341794
+    data_sensitivity:
+      - technical
+    notification_emails:
+      - android-probes@mozilla.com
+    expires: never
+    metadata:
+      tags:
+        - Tabs
+        - Performance

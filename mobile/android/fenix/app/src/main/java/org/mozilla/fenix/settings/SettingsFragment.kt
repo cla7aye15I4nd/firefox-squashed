@@ -375,7 +375,8 @@ class SettingsFragment : PreferenceFragmentCompat(), SystemInsetsPaddedFragment 
                     SettingsFragmentDirections.actionSettingsFragmentToAccountSettingsFragment()
                 }
 
-                resources.getString(R.string.pref_key_account_auth_error) -> {
+                resources.getString(R.string.pref_key_account_auth_error),
+                resources.getString(R.string.pref_key_account_error_card_auth) -> {
                     SettingsFragmentDirections.actionSettingsFragmentToAccountProblemFragment(
                         entrypoint = FenixFxAEntryPoint.SettingsMenu
                     )

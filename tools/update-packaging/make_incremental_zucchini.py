@@ -6,9 +6,6 @@
 #  as make_incremental_update.sh and funsize logic. There are many
 #  opportunities for refactoring and improving how this works.
 # Some improvement ideas:
-# - The script diffs xz-compressed files. This is not optimal,
-#      if we change XZ compression options, this will cause the
-#      partial to have unnecessary updates.
 # - Only decompress the target complete mar once
 # - Separate this script into a python module with multiple files (ie: download, validation, diffing)
 # - Implement caching of diffs. https://bugzilla.mozilla.org/show_bug.cgi?id=1842209
@@ -16,6 +13,7 @@
 
 import argparse
 import configparser
+import filecmp
 import functools
 import glob
 import hashlib
@@ -31,7 +29,7 @@ import traceback
 import urllib.error
 import urllib.request
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from tempfile import NamedTemporaryFile
+from tempfile import TemporaryDirectory
 
 from mardor.reader import MarReader
 from mardor.signing import get_keysize
@@ -102,14 +100,17 @@ def get_hash(path, algo="sha512"):
     return h.hexdigest()
 
 
+def _rel_posix(path, start):
+    return os.path.relpath(path, start).replace(os.sep, "/")
+
+
 def _hash_dir(directory):
     """Return {rel_path: sha256_hex} for every file under directory."""
     result = {}
     for root, _, filenames in os.walk(directory):
         for filename in filenames:
             abs_path = os.path.join(root, filename)
-            rel_path = os.path.relpath(abs_path, directory)
-            result[rel_path] = get_hash(abs_path, "sha256")
+            result[_rel_posix(abs_path, directory)] = get_hash(abs_path, "sha256")
     return result
 
 
@@ -239,10 +240,13 @@ def list_files_and_dirs(dir_path):
     dirs = []
     for root, directories, filenames in os.walk(dir_path):
         for directory in directories:
-            dirs.append(os.path.relpath(os.path.join(root, directory), dir_path))
+            dirs.append(_rel_posix(os.path.join(root, directory), dir_path))
         for filename in filenames:
-            files.append(os.path.relpath(os.path.join(root, filename), dir_path))
-    return files, dirs
+            files.append(_rel_posix(os.path.join(root, filename), dir_path))
+    # Reverse code-point order, matching "sort -r" under LC_ALL=C. It makes the
+    # manifest reproducible and puts a directory after each of its children,
+    # which RemoveDir needs since it only removes empty directories.
+    return sorted(files, reverse=True), sorted(dirs, reverse=True)
 
 
 def extension_root_dir(filename):
@@ -293,6 +297,14 @@ def make_add_if_not_instruction(filename, manifest):
         manifest_file.write(f'add-if-not "{filename}" "{filename}"\n')
 
 
+def append_rmdir_instructions(olddirs, newdirs, manifest):
+    newdirs = set(newdirs)
+    with open(manifest, "a") as manifest_file:
+        for rel_path in olddirs:
+            if rel_path not in newdirs:
+                manifest_file.write(f'rmdir "{rel_path}/"\n')
+
+
 def append_remove_instructions(newdir, manifest):
     removed_files_path = os.path.join(newdir, "removed-files")
     if not os.path.isfile(removed_files_path):
@@ -301,7 +313,9 @@ def append_remove_instructions(newdir, manifest):
             newdir, "Contents", "Resources", "removed-files"
         )
     if os.path.isfile(removed_files_path):
-        removed_files = get_text_from_compressed(removed_files_path).splitlines()
+        removed_files = sorted(
+            get_text_from_compressed(removed_files_path).splitlines(), reverse=True
+        )
         with open(manifest, "a") as manifest_file:
             for line in removed_files:
                 entry = line.strip()
@@ -313,6 +327,39 @@ def append_remove_instructions(newdir, manifest):
                     manifest_file.write(f'rmrfdir "{entry[:-1]}"\n')
                 else:
                     manifest_file.write(f'remove "{entry}"\n')
+
+
+def get_app_name(mar_dir):
+    return get_option_from_compressed(mar_dir, "application.ini", "App", "Name").lower()
+
+
+def _instruction_member(line):
+    """The member path an instruction acts on, which is always its last quoted
+    argument."""
+    return line.rsplit('"', 2)[-2]
+
+
+def reorder_instructions(manifest, appname):
+    with open(manifest) as manifest_file:
+        lines = manifest_file.read().splitlines()
+
+    rank = {
+        "dependentlibs.list": -1,
+        # Any other member gets 0.
+        "xul.dll": 1,
+        "browser/omni.ja": 2,
+        "omni.ja": 3,
+        "mozglue.dll": 4,
+        f"{appname}.exe": 5,
+    }
+
+    # The sort is stable, so the other instructions keep their order.
+    lines[1:] = sorted(
+        lines[1:], key=lambda line: rank.get(_instruction_member(line), 0)
+    )
+
+    with open(manifest, "w") as manifest_file:
+        manifest_file.write("\n".join(lines) + "\n")
 
 
 def validate_mar_channel_id(mar_path, mar_channel_id):
@@ -358,24 +405,61 @@ def xz_cmd(cmd, source_file, destination_file):
             raise Exception(f"XZ exited with code {e.returncode}")
 
 
-def create_patch(from_file, to_file, destination_patch):
-    """Create a patch between 2 xz compressed files"""
-    log(f"{from_file} -> {destination_patch}", "create_patch")
+def xz_decompress(scratch_dir, *xz_files):
+    """Decompress xz_files into scratch_dir and return the decompressed paths."""
+    paths = [os.path.join(scratch_dir, str(i)) for i in range(len(xz_files))]
+    for xz_file, path in zip(xz_files, paths):
+        xz_cmd(("--decompress",), xz_file, path)
+    return paths
 
-    with NamedTemporaryFile() as from_fd, NamedTemporaryFile() as to_fd, NamedTemporaryFile() as patch_fd:
-        xz_cmd(("--decompress",), from_file, from_fd.name)
 
+def create_patch(old_raw, new_raw, scratch_dir):
+    """Create a patch between 2 non-empty decompressed files in scratch_dir and
+    return the path of its xz compressed version."""
+    patch_raw = os.path.join(scratch_dir, "patch")
+    args = ["zucchini", "-gen", old_raw, new_raw, patch_raw]
+    try:
+        subprocess.run(args, check=True)
+    except subprocess.CalledProcessError as e:
+        log(f"Zucchini failed to create patch:\n{e.stderr}", "create_patch")
+        raise Exception(f"Zucchini exited with code: {e.returncode}")
+    patch_xz = f"{patch_raw}.xz"
+    xz_cmd(("--compress", "-7", "-e", "-c"), patch_raw, patch_xz)
+    return patch_xz
+
+
+def package_member_in_full(rel_path, new_xz, partials_dir, manifest_file, reason):
+    log(f"{reason}, packaging {rel_path} in full", "package_member_in_full")
+    make_add_instruction(rel_path, manifest_file)
+    shutil.copy2(new_xz, os.path.join(partials_dir, rel_path))
+    return rel_path
+
+
+def package_member(rel_path, old_xz, new_xz, partials_dir, manifest_file):
+    """Package the smaller of a patch and the full file for a member that
+    differs between old_xz and new_xz. Return the archive file name, or None if
+    the decompressed contents are identical."""
+    if filecmp.cmp(old_xz, new_xz, shallow=False):
+        return None
+    with TemporaryDirectory() as scratch_dir:
         # TODO: Potentially don't decompress to_mar files once per thread?
-        xz_cmd(("--decompress",), to_file, to_fd.name)
-
-        args = ["zucchini", "-gen", from_fd.name, to_fd.name, patch_fd.name]
-        try:
-            subprocess.run(args, check=True)
-        except subprocess.CalledProcessError as e:
-            log(f"Zucchini failed to create patch:\n{e.stderr}", "create_patch")
-            raise Exception(f"Zucchini exited with code: {e.returncode}")
-
-        xz_cmd(("--compress", "-7", "-e", "-c"), patch_fd.name, destination_patch)
+        old_raw, new_raw = xz_decompress(scratch_dir, old_xz, new_xz)
+        if filecmp.cmp(old_raw, new_raw, shallow=False):
+            return None
+        # zucchini fails to generate a patch if either side is empty, by design
+        if os.path.getsize(old_raw) == 0 or os.path.getsize(new_raw) == 0:
+            return package_member_in_full(
+                rel_path, new_xz, partials_dir, manifest_file, "Empty member"
+            )
+        log(f"{old_xz} -> {rel_path}.patch", "package_member")
+        patch_xz = create_patch(old_raw, new_raw, scratch_dir)
+        if os.path.getsize(patch_xz) >= os.path.getsize(new_xz):
+            return package_member_in_full(
+                rel_path, new_xz, partials_dir, manifest_file, "Patch is not smaller"
+            )
+        shutil.move(patch_xz, os.path.join(partials_dir, f"{rel_path}.patch"))
+        make_patch_instruction(rel_path, manifest_file)
+        return f"{rel_path}.patch"
 
 
 def make_partial(
@@ -400,6 +484,7 @@ def make_partial(
     requested_forced_updates = force or []
     # MacOS firefox binary is always forced update
     requested_forced_updates.append("Contents/MacOS/firefox")
+    appname = get_app_name(to_mar_dir)
     manifest_file = os.path.join(workdir, "updatev3.manifest")
 
     # Holds the relative path to all archive files to be added to the partial
@@ -426,7 +511,7 @@ def make_partial(
     os.makedirs(partials_dir, exist_ok=True)
 
     # List files and directories
-    oldfiles, _ = list_files_and_dirs(from_mar_dir)
+    oldfiles, olddirs = list_files_and_dirs(from_mar_dir)
     newfiles, newdirs = list_files_and_dirs(to_mar_dir)
 
     for newdir in newdirs:
@@ -467,9 +552,9 @@ def make_partial(
                 shutil.copy2(new_file_abs, patch_file)
                 archivefiles.append(rel_path)
             else:
-                cache_archive = None
+                archive = None
                 if cache_extracted_dir is not None and cache_entry is not None:
-                    cache_archive = _maybe_use_cached_file(
+                    archive = _maybe_use_cached_file(
                         cache_entry,
                         rel_path,
                         from_hashes[rel_path],
@@ -478,29 +563,16 @@ def make_partial(
                         partials_dir,
                         manifest_file,
                     )
-                if cache_archive is not None:
-                    archivefiles.append(cache_archive)
-                elif (
-                    # TODO: !!! This check will always trigger if we switch XZ options!
-                    subprocess.run(
-                        ("diff", old_file_abs, new_file_abs),
-                        check=False,
-                    ).returncode
-                    != 0
-                ):
-                    # Check for smaller patch or full file size and choose the smaller of the two to package
-                    create_patch(old_file_abs, new_file_abs, f"{patch_file}.patch")
-                    if (
-                        os.stat(f"{patch_file}.patch").st_size
-                        > os.stat(new_file_abs).st_size
-                    ):
-                        make_add_instruction(rel_path, manifest_file)
-                        os.unlink(f"{patch_file}.patch")
-                        shutil.copy2(new_file_abs, patch_file)
-                        archivefiles.append(rel_path)
-                    else:
-                        make_patch_instruction(rel_path, manifest_file)
-                        archivefiles.append(f"{rel_path}.patch")
+                if archive is None:
+                    archive = package_member(
+                        rel_path,
+                        old_file_abs,
+                        new_file_abs,
+                        partials_dir,
+                        manifest_file,
+                    )
+                if archive is not None:
+                    archivefiles.append(archive)
 
         else:
             remove_array.append(rel_path)
@@ -522,6 +594,10 @@ def make_partial(
 
     # Add directory removal instructions from removed-files
     append_remove_instructions(to_mar_dir, manifest_file)
+
+    append_rmdir_instructions(olddirs, newdirs, manifest_file)
+
+    reorder_instructions(manifest_file, appname)
 
     # Compress manifest file and add to list of archived files
     compressed_manifest = os.path.join(partials_dir, "updatev3.manifest")

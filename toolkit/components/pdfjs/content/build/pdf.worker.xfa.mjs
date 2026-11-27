@@ -20,8 +20,8 @@
  */
 
 /**
- * pdfjsVersion = 7.0.234
- * pdfjsBuild = 3471ae169
+ * pdfjsVersion = 7.0.247
+ * pdfjsBuild = e47398270
  */
 export const __webpack_esm_ids__ = ["xfa"];
 export const __webpack_esm_modules__ = {

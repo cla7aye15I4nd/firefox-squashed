@@ -295,14 +295,12 @@ class CanvasTranslator final : public gfx::InlineTranslator,
 
   void GetDataSurface(uint32_t aId, uint64_t aSurfaceRef);
 
-  /**
-   * Wait for a canvas to produce the designated surface. If necessary,
-   * this may flush out canvas commands to ensure the surface is created.
-   * This should only be called from within the canvas task queue thread
-   * so that it can force event processing to occur if necessary.
-   */
-  already_AddRefed<gfx::SourceSurface> WaitForSurface(
-      uintptr_t aId, Maybe<layers::SurfaceDescriptor>* aDesc = nullptr);
+  // Resolve an export on the canvas render thread, replaying pending events
+  // up to the current checkpoint if needed. If requested, also try to export
+  // a shared surface descriptor for the resolved surface.
+  already_AddRefed<gfx::SourceSurface> TryResolveExportedSurface(
+      uintptr_t aExportId,
+      Maybe<layers::SurfaceDescriptor>* aOutSharedSurfaceDesc = nullptr);
 
   static void Shutdown();
 
@@ -325,6 +323,10 @@ class CanvasTranslator final : public gfx::InlineTranslator,
 
  private:
   ~CanvasTranslator();
+
+  void TryExportSharedSurfaceDescriptor(
+      ExportSurface& aSurface,
+      Maybe<layers::SurfaceDescriptor>& aOutSharedSurfaceDesc);
 
   class CanvasTranslatorEvent {
    public:
@@ -517,14 +519,21 @@ class CanvasTranslator final : public gfx::InlineTranslator,
   uint64_t mAwaitSyncId = 0;
   // The last sync-id that was actually encountered.
   uint64_t mLastSyncId = 0;
-  // A table of external canvas snapshots associated with a given sync-id.
+  // Keep the captured resources alive until the resolve event consumes them.
+  // The descriptor is used to import the shared surface into Canvas 2D.
   struct ExternalSnapshot {
     std::shared_ptr<gl::SharedSurface> mSharedSurface;
     WeakPtr<WebGLContext> mWebgl;
     Maybe<layers::SurfaceDescriptor> mDescriptor;
     RefPtr<gfx::SourceSurface> mData;
   };
-  // Surface decriptors, if available, associated with a given sync-id.
+  ExternalSnapshot CaptureExternalWebGLSnapshot(uint32_t aManagerId,
+                                                ActorId aCanvasId);
+  already_AddRefed<gfx::SourceSurface> ImportSharedSnapshot(
+      const ExternalSnapshot& aSnapshot, const gfx::IntSize& aSize,
+      gfx::SurfaceFormat aFormat, gfx::DrawTarget* aDT);
+
+  // Captured snapshots awaiting replay, keyed by sync ID.
   std::unordered_map<uint64_t, ExternalSnapshot> mExternalSnapshots;
 
   // Signal that translation should pause because it is still awaiting a sync-id

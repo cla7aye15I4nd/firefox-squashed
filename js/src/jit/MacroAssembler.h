@@ -1157,6 +1157,11 @@ class MacroAssembler : public MacroAssemblerSpecific {
 
   inline void nor32(Imm32 imm, Register src, Register dest) PER_SHARED_ARCH;
 
+  inline void andNot32(Register lhs, Register rhs,
+                       Register dest) PER_SHARED_ARCH;
+  inline void andNot64(Register64 lhs, Register64 rhs,
+                       Register64 dest) PER_ARCH;
+
   // ===============================================================
   // Swap instructions
 
@@ -6267,7 +6272,12 @@ class MacroAssembler : public MacroAssemblerSpecific {
     emitProfilingInstrumentation_ = true;
   }
 
-  void instrumentProfilerCallSite();
+  // Update cx->profilingActivation()->lastProfilingCallSite.
+  // The `IfEnabled` versions skip the update if the profiler isn't enabled.
+  void storeProfilerCallSiteIfEnabled(Register callSite);
+  void storeProfilerCallSiteIfEnabled(const Address& callSiteAddr,
+                                      Register scratch);
+  void storeProfilerCallSite(const Address& callSiteAddr, Register scratch);
 
  private:
   // This class is used to surround call sites throughout the assembler. This

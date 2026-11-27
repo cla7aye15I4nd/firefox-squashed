@@ -49,46 +49,49 @@ with Files("docs/**"):
     SCHEDULES.exclusive = ["docs"]
 
 with Files("eslint*"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+    BUG_COMPONENT = ("Developer Infrastructure", "Linting and Formatting: JavaScript")
 
 with Files("stylelint*"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+    BUG_COMPONENT = ("Developer Infrastructure", "Linting and Formatting: CSS")
 
 with Files("mach*"):
     BUG_COMPONENT = ("Firefox Build System", "Mach Core")
 
-with Files("pyproject.toml", "srcdir-resolver.js"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+with Files("pyproject.toml"):
+    BUG_COMPONENT = ("Developer Infrastructure", "Linting and Formatting: Python")
 
-with Files(".babel-eslint.rc.js"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+with Files(".babel-eslint.rc.js", "srcdir-resolver.js"):
+    BUG_COMPONENT = ("Developer Infrastructure", "Linting and Formatting: JavaScript")
 
 with Files(".cargo/audit.toml"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+    BUG_COMPONENT = ("Developer Infrastructure", "Linting and Formatting: C/C++")
 
 with Files(".clang-format"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+    BUG_COMPONENT = ("Developer Infrastructure", "Linting and Formatting: C/C++")
 
 with Files(".clang-format-ignore"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+    BUG_COMPONENT = ("Developer Infrastructure", "Linting and Formatting: C/C++")
 
 with Files(".prettierignore*"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+    BUG_COMPONENT = ("Developer Infrastructure", "Linting and Formatting: JavaScript")
 
 with Files(".prettierrc.js"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+    BUG_COMPONENT = ("Developer Infrastructure", "Linting and Formatting: JavaScript")
 
 with Files(".stylelintignore"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+    BUG_COMPONENT = ("Developer Infrastructure", "Linting and Formatting: CSS")
 
 with Files(".stylelintrc.js"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+    BUG_COMPONENT = ("Developer Infrastructure", "Linting and Formatting: CSS")
 
 with Files(".yamllint"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+    BUG_COMPONENT = (
+        "Developer Infrastructure",
+        "Linting and Formatting: General Harness",
+    )
 
 with Files("toolkit/.eslintrc.mjs"):
-    BUG_COMPONENT = ("Developer Infrastructure", "Lint and Formatting")
+    BUG_COMPONENT = ("Developer Infrastructure", "Linting and Formatting: JavaScript")
 
 with Files("*moz*"):
     BUG_COMPONENT = ("Firefox Build System", "General")
@@ -301,13 +304,17 @@ if not CONFIG["JS_STANDALONE"] or not CONFIG["MOZ_BUILD_APP"]:
 
     GENERATED_FILES += [
         "buildid.h",
+        "buildid.txt",
         "source-repo.h",
+        "source-repo.txt",
     ]
 
     GENERATED_FILES["buildid.h"].script = "build/variables.py:buildid_header"
     GENERATED_FILES["buildid.h"].inputs = ["!/buildid.txt"]
+    GENERATED_FILES["buildid.txt"].script = "build/variables.py:buildid_file"
     GENERATED_FILES["source-repo.h"].script = "build/variables.py:source_repo_header"
     GENERATED_FILES["source-repo.h"].inputs = ["!/source-repo.txt"]
+    GENERATED_FILES["source-repo.txt"].script = "build/variables.py:source_repo_file"
 
 if CONFIG["MOZ_BUILD_APP"]:
     # Bring in the configuration for the configured application.
