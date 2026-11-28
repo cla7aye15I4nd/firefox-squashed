@@ -64,31 +64,14 @@
     <!-- Layers -->
     <!-- Card background, Menu background, Dialog, Banner -->
     <color name="fx_mobile_layer_color_2">@color/novaWhite</color>
-    <!-- Warning background -->
-    <color name="fx_mobile_layer_color_warning">@color/photonYellow20</color>
-    <!-- Error background -->
-    <color name="fx_mobile_layer_color_critical">@color/photonRed10</color>
 
     <!-- Action -->
     <!-- Primary button in a disabled state-->
     <color name="fx_mobile_action_color_primary_disabled">@color/photonInk20A20</color>
 
     <!-- Text -->
-    <!-- Text Inverted/On Color -->
-    <color name="fx_mobile_text_color_oncolor_primary">@color/photonLightGrey05</color>
-    <!-- Text Inverted/On Color -->
-    <color name="fx_mobile_text_color_oncolor_secondary">@color/photonLightGrey40</color>
     <!-- Action Primary disabled text -->
     <color name="fx_mobile_text_color_action_primary_disabled">@color/photonDarkGrey90A50</color>
-
-    <!-- Icon -->
-    <!-- Icon inverted (on color) -->
-    <color name="fx_mobile_icon_color_oncolor">@color/photonLightGrey05</color>
-    <color name="fx_mobile_icon_color_accent_violet">@color/photonViolet70</color>
-    <color name="fx_mobile_icon_color_accent_blue">@color/photonBlue60</color>
-    <color name="fx_mobile_icon_color_accent_pink">@color/photonPink60</color>
-    <color name="fx_mobile_icon_color_accent_green">@color/photonGreen60</color>
-    <color name="fx_mobile_icon_color_accent_yellow">@color/photonYellow60</color>
 
     <!-- Private theme color variables -->
 
@@ -209,6 +192,17 @@
     <color name="search_suggestion_indicator_icon_color_normal_theme">@color/photonGreen70</color>
     <color name="search_suggestion_indicator_icon_bookmark_color_normal_theme">@color/photonBlue50</color>
 
+    <!-- Colors of the phone drawn in the customize menu banner illustration -->
+    <color name="customize_menu_banner_shadow_normal_theme">#25080707</color>
+    <color name="customize_menu_banner_screen_normal_theme">#FFFFFF</color>
+    <color name="customize_menu_banner_notch_normal_theme">#584A7D</color>
+    <color name="customize_menu_banner_card_normal_theme">#D4C1FF</color>
+    <color name="customize_menu_banner_panel_normal_theme">#FCFBFF</color>
+    <color name="customize_menu_banner_shadow_dark_theme">#614C406C</color>
+    <color name="customize_menu_banner_screen_dark_theme">#1D1B1F</color>
+    <color name="customize_menu_banner_notch_dark_theme">#4C406C</color>
+    <color name="customize_menu_banner_card_dark_theme">#5939A8</color>
+
     <!-- Tracking protection dashboard colors used in normal browsing mode -->
     <color name="protections_dashboard_chip_background">#66FFFFFF</color>
     <color name="protections_dashboard_chip_text">#FF312A64</color>
@@ -277,8 +271,8 @@
     <color name="mozac_ui_icons_fill" tools:ignore="UnusedResources">@color/fx_mobile_on_surface</color>
 
     <!-- Add-ons colors -->
-    <color name="mozac_feature_addons_messagebar_error_background_color" tools:ignore="UnusedResources">@color/fx_mobile_layer_color_critical</color>
-    <color name="mozac_feature_addons_messagebar_warning_background_color" tools:ignore="UnusedResources">@color/fx_mobile_layer_color_warning</color>
+    <color name="mozac_feature_addons_messagebar_error_background_color" tools:ignore="UnusedResources">@color/fx_mobile_error_container</color>
+    <color name="mozac_feature_addons_messagebar_warning_background_color" tools:ignore="UnusedResources">@color/fx_mobile_warning_container</color>
 
     <!-- Private Mode mask icon circle fill colors for mozac_ic_private_mode_circle_fill_stroke_20 -->
     <color name="mozac_ic_private_mode_circle_fill" tools:ignore="UnusedResources">@color/fx_mobile_icon_private</color>

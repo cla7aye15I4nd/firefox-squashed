@@ -8,6 +8,10 @@ export interface Toolbox extends BaseToolbox {
   commands: {
     descriptorFront: {
       isTabDescriptor?: boolean;
+      isLocalTab: boolean;
+    };
+    targetCommand: {
+      navigateTo(url: string): Promise<void>;
     };
     targetConfigurationCommand: {
       isJavascriptEnabled(): Promise<boolean>;

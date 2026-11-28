@@ -12,7 +12,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -88,7 +90,9 @@ private fun EditMenuItemsList(
 ) {
     val itemSpacing = AcornTheme.layout.space.static50
     val announcer = rememberA11yUpdatesAnnouncer()
-    val actions = rememberEditMenuItemsActions(store, menuItems, dragState, announcer)
+    val actionsItemId = rememberSaveable { mutableStateOf<String?>(null) }
+    val onShowActions = remember { { id: String -> actionsItemId.value = id } }
+    val actions = rememberEditMenuItemsActions(store, menuItems, dragState, announcer, onShowActions)
 
     LazyColumn(
         modifier =
@@ -112,7 +116,7 @@ private fun EditMenuItemsList(
             )
         }
 
-        editMenuItemRows(menuItems.shownRows, firstIndex = 1, dragState, itemSpacing, actions)
+        editMenuItemRows(menuItems.shownRows, firstIndex = 1, dragState, itemSpacing, actions, actionsItemId.value)
 
         item(key = HIDDEN_TITLE) {
             HiddenSectionsItem(
@@ -131,11 +135,51 @@ private fun EditMenuItemsList(
             }
         }
 
-        editMenuItemRows(menuItems.hiddenRows, dragState.firstHiddenIndex, dragState, itemSpacing, actions)
+        editMenuItemRows(
+            menuItems.hiddenRows,
+            dragState.firstHiddenIndex,
+            dragState,
+            itemSpacing,
+            actions,
+            actionsItemId.value,
+        )
     }
+
+    EditMenuItemActionsSheetOf(
+        itemId = actionsItemId.value,
+        actions = actions,
+        onDismissRequest = { actionsItemId.value = null },
+    )
 
     // Drawn over the list, important to be the last element here.
     announcer.LiveRegion()
+}
+
+/**
+ * Bottom sheet with the actions of the item with [itemId], shown only while the item has a row.
+ *
+ * @param itemId Id of the item, if any.
+ * @param actions What the rows do.
+ * @param onDismissRequest Called when the sheet is hidden, to stop showing it.
+ */
+@Composable
+private fun EditMenuItemActionsSheetOf(
+    itemId: String?,
+    actions: EditMenuItemsActions,
+    onDismissRequest: () -> Unit,
+) {
+    if (itemId == null) return
+    val row =
+        (actions.items.shownRows + actions.items.hiddenRows).firstOrNull { it.key == itemId } as? EditMenuItemsRow.Item
+    val sheetActions =
+        row?.let { r -> r.item.item?.let { editMenuItemActions(r, it.a11yName(), actions) } }
+            ?.takeIf { it.isNotEmpty() }
+            ?.map { entry -> entry.copy(result = entry.result?.takeIf { !it.isRefused }) }
+    CustomizeMenuActionsSheet(
+        actions = sheetActions,
+        onAction = { action, announcement -> actions.onMove(itemId, action.result, announcement) },
+        onDismissRequest = onDismissRequest,
+    )
 }
 
 @Composable
@@ -144,10 +188,11 @@ private fun rememberEditMenuItemsActions(
     menuItems: CustomizeMenuItems,
     dragState: CustomizeMenuDragState<CustomizeMenuItems>,
     announcer: A11yUpdatesAnnouncer,
+    onShowActions: (itemId: String) -> Unit,
 ): EditMenuItemsActions {
     val listState = dragState.listState
     val interactionState = dragState.interactionState
-    return remember(store, menuItems, announcer, listState, interactionState) {
+    return remember(store, menuItems, announcer, listState, interactionState, onShowActions) {
         fun canChange(): Boolean {
             val current = store.state
             val isStale =
@@ -165,11 +210,12 @@ private fun rememberEditMenuItemsActions(
             onMove = { itemId, moved, announcement ->
                 if (canChange()) {
                     moved.listIndexOf(itemId)?.let { listState.moveAndKeepVisible(itemId, it) }
-                    store.dispatch(ItemsChanged(items = moved.shown, hiddenItems = moved.hidden))
+                    store.dispatch(ItemsChanged(items = moved.shown, hiddenItems = moved.hidden, movedItemId = itemId))
                     announcer.announce(announcement)
                 }
             },
             onRejected = { itemId -> if (canChange()) store.dispatch(AttemptedEmptySection(itemId)) },
+            onShowActions = onShowActions,
             announce = { announcement -> if (!interactionState.isDragging()) announcer.announce(announcement) },
         )
     }
@@ -183,6 +229,7 @@ private fun LazyListScope.editMenuItemRows(
     dragState: CustomizeMenuDragState<CustomizeMenuItems>,
     itemSpacing: Dp,
     actions: EditMenuItemsActions,
+    highlightedItemId: String?,
 ) {
     itemsIndexed(items = rows, key = { _, row -> row.key }) { index, row ->
         EditMenuItemRow(
@@ -191,6 +238,7 @@ private fun LazyListScope.editMenuItemRows(
             dragState = dragState,
             itemSpacing = itemSpacing,
             actions = actions,
+            isHighlighted = row.key == highlightedItemId,
         )
     }
 }

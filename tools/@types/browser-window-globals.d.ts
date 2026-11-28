@@ -19,9 +19,11 @@ declare namespace BrowserWindow {
 
   var gBrowser: Tabbrowser;
   var gCustomizeMode: import("moz-src:///browser/components/customizableui/CustomizeMode.sys.mjs").CustomizeMode;
+  var CustomizationHandler: import("moz-src:///browser/components/customizableui/BrowserCustomization.sys.mjs").CustomizationHandler;
   var gInitialPages: string[];
   var gMultiProcessBrowser: boolean;
   var gURLBar: import("chrome://browser/content/urlbar/UrlbarInput.mjs").UrlbarInput;
+  var FullZoom: import("moz-src:///browser/components/tabbrowser/FullZoom.sys.mjs").FullZoom;
   var delayedStartupPromise: Promise<void>;
   var RTL_UI: boolean;
 
@@ -168,4 +170,16 @@ declare namespace BrowserWindow {
 
   // tabbrowser/content/tab-context-menu.mjs
   var TabContextMenu: typeof import("chrome://browser/content/tabbrowser/tab-context-menu.mjs").TabContextMenu;
+
+  // toolkit/content/viewZoomOverlay.js
+  var ZoomManager: {
+    readonly MIN: number;
+    readonly MAX: number;
+    useFullZoom: boolean;
+    zoom: number;
+    getZoomForBrowser(aBrowser: MozBrowser): number;
+    setZoomForBrowser(aBrowser: MozBrowser, aVal: number): void;
+    enlargeForBrowser(aBrowser: MozBrowser): void;
+    reduceForBrowser(aBrowser: MozBrowser): void;
+  };
 }

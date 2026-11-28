@@ -30,10 +30,12 @@ sealed interface CustomizableMenuItemsAction : Action {
      *
      * @property items The items shown in the menu, in the order they are shown in, as moved.
      * @property hiddenItems The items the user removed from the menu, as moved.
+     * @property movedItemId Id of the item the user moved.
      */
     data class ItemsChanged(
         val items: List<CustomizableMenuItem>,
         val hiddenItems: List<CustomizableMenuItem>,
+        val movedItemId: String,
     ) : CustomizableMenuItemsAction
 
     /**
@@ -59,4 +61,7 @@ sealed interface CustomizableMenuItemsAction : Action {
 
     /** The user tapped "Preview" on the screen. */
     data object PreviewClicked : CustomizableMenuItemsAction
+
+    /** The user tapped or gestured to go back while in the screen customizing the items of a menu section. */
+    data object BackPressed : CustomizableMenuItemsAction
 }

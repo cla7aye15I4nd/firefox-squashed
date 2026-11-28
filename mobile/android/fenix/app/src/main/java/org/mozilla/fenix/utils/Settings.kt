@@ -690,6 +690,23 @@ class Settings(
             default = true,
         )
 
+    /**
+     * Whether the promotional banner for the menu customization feature can still be shown. Turned off when the user
+     * dismisses the banner or customizes the menu.
+     */
+    var shouldShowCustomizeMenuBanner by
+        booleanPreference(
+            key = appContext.getPreferenceKey(R.string.pref_key_show_customize_menu_banner),
+            default = true,
+        )
+
+    /** How many times the menu was shown with the menu customization promotional banner. */
+    var customizeMenuBannerViewCount by
+        intPreference(
+            key = appContext.getPreferenceKey(R.string.pref_key_customize_menu_banner_view_count),
+            default = 0,
+        )
+
     var defaultSearchEngineName by
         stringPreference(
             appContext.getPreferenceKey(R.string.pref_key_search_engine),
@@ -3324,6 +3341,20 @@ class Settings(
             key = appContext.getPreferenceKey(R.string.pref_key_default_browser),
             default = false,
         )
+
+    /** The value of [isDefaultBrowser], and every change of it. */
+    val isDefaultBrowserFlow: Flow<Boolean> = callbackFlow {
+        val key = appContext.getPreferenceKey(R.string.pref_key_default_browser)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, changedKey ->
+            if (changedKey == null || changedKey == key) {
+                trySend(isDefaultBrowser)
+            }
+        }
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        send(isDefaultBrowser)
+        awaitClose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+        .distinctUntilChanged()
 
     /** Indicates if the sponsored tiles are suppressed. */
     var suppressSponsoredTopSitesEnabled by

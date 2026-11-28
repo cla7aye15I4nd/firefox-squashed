@@ -62,9 +62,8 @@ appmenuitem-referrals =
     .label = Share { -brand-product-name }
 appmenuitem-more-tools =
     .label = More Tools
-# Menu combining the previous "Help" menu and report broken site
-appmenuitem-help-and-report =
-    .label = Help and Report
+appmenuitem-help =
+    .label = Help
 appmenuitem-exit2 =
     .label =
         { PLATFORM() ->
@@ -284,6 +283,10 @@ profiler-popup-presets-firefox-description = Recommended preset for profiling { 
 profiler-popup-presets-firefox-label =
   .label = { -brand-shorter-name }
 
+profiler-popup-presets-benchmark-description = Preset for investigating { -brand-shorter-name } performance on benchmarks such as Speedometer, with low overhead.
+profiler-popup-presets-benchmark-label =
+  .label = Benchmark
+
 profiler-popup-presets-graphics-description = Preset for investigating graphics bugs in { -brand-shorter-name }.
 profiler-popup-presets-graphics-label =
   .label = Graphics
@@ -363,9 +366,9 @@ appmenu-search-history =
 
 ## Help panel
 
-# Menu header for combination of "Help" menu and report broken site
-appmenu-help-and-report-header =
-    .title = Help and Report
+# The header text of the app menu's Help panel.
+appmenu-help-header2 =
+    .title = Help
 appmenu-about =
     .label = About { -brand-shorter-name }
     .accesskey = A

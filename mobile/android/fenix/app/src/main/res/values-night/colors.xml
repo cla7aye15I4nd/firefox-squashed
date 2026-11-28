@@ -64,31 +64,14 @@
     <!-- Layers -->
     <!-- Card background, Menu background, Dialog, Banner -->
     <color name="fx_mobile_layer_color_2">@color/photonDarkGrey30</color>
-    <!-- Warning background -->
-    <color name="fx_mobile_layer_color_warning">@color/photonYellow70A77</color>
-    <!-- Error background -->
-    <color name="fx_mobile_layer_color_critical">@color/photonPink80</color>
 
     <!-- Action -->
     <!-- Primary button in a disabled state -->
     <color name="fx_mobile_action_color_primary_disabled">@color/photonViolet60A50</color>
 
     <!-- Text -->
-    <!-- Text Inverted/On Color -->
-    <color name="fx_mobile_text_color_oncolor_primary">@color/photonLightGrey05</color>
-    <!-- Text Inverted/On Color -->
-    <color name="fx_mobile_text_color_oncolor_secondary">@color/photonLightGrey40</color>
     <!-- Action Primary disabled text -->
     <color name="fx_mobile_text_color_action_primary_disabled">@color/photonLightGrey05A40</color>
-
-    <!-- Icon -->
-    <!-- Icon inverted (on color) -->
-    <color name="fx_mobile_icon_color_oncolor">@color/photonLightGrey05</color>
-    <color name="fx_mobile_icon_color_accent_violet">@color/photonViolet20</color>
-    <color name="fx_mobile_icon_color_accent_blue">@color/photonBlue20</color>
-    <color name="fx_mobile_icon_color_accent_pink">@color/photonPink20</color>
-    <color name="fx_mobile_icon_color_accent_green">@color/photonGreen20</color>
-    <color name="fx_mobile_icon_color_accent_yellow">@color/photonYellow20</color>
 
     <!-- Normal theme colors for dark mode -->
     <color name="accent_normal_theme">@color/photonViolet50</color>
@@ -97,6 +80,11 @@
     <color name="prompt_login_edit_text_cursor_color_normal_theme">@color/photonViolet50</color>
     <color name="search_suggestion_indicator_icon_color_normal_theme">@color/photonGreen60</color>
     <color name="search_suggestion_indicator_icon_bookmark_color_normal_theme">@color/photonBlue40</color>
+    <color name="customize_menu_banner_shadow_normal_theme">@color/customize_menu_banner_shadow_dark_theme</color>
+    <color name="customize_menu_banner_screen_normal_theme">@color/customize_menu_banner_screen_dark_theme</color>
+    <color name="customize_menu_banner_notch_normal_theme">@color/customize_menu_banner_notch_dark_theme</color>
+    <color name="customize_menu_banner_card_normal_theme">@color/customize_menu_banner_card_dark_theme</color>
+    <color name="customize_menu_banner_panel_normal_theme">@android:color/transparent</color>
 
     <!-- Protections Dashboard colors -->
     <color name="protections_dashboard_chip_background">#FF3D3264</color>

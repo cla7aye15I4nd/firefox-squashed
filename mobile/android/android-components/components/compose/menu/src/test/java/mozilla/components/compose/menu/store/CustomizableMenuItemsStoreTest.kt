@@ -9,6 +9,7 @@ import mozilla.components.compose.menu.data.CustomizableMenuItem
 import mozilla.components.compose.menu.data.ExpandableMenuItem
 import mozilla.components.compose.menu.data.MenuItemTitle
 import mozilla.components.compose.menu.data.StandardMenuItem
+import mozilla.components.compose.menu.store.CustomizableMenuItemsAction.BackPressed
 import mozilla.components.compose.menu.store.CustomizableMenuItemsAction.ExpansionToggled
 import mozilla.components.compose.menu.store.CustomizableMenuItemsAction.Init
 import mozilla.components.compose.menu.store.CustomizableMenuItemsAction.ItemsChanged
@@ -67,7 +68,11 @@ class CustomizableMenuItemsStoreTest {
         store.dispatch(Update(items = listOf(item("a"), expandable("more", item("b"))), hiddenItems = emptyList()))
 
         store.dispatch(
-            ItemsChanged(items = listOf(item("a"), expandable("more"), item("b")), hiddenItems = emptyList())
+            ItemsChanged(
+                items = listOf(item("a"), expandable("more"), item("b")),
+                hiddenItems = emptyList(),
+                movedItemId = "b",
+            )
         )
 
         assertEquals(emptySet<String>(), store.state.expandedItemIds)
@@ -79,7 +84,13 @@ class CustomizableMenuItemsStoreTest {
         store.dispatch(Update(items = listOf(item("a")), hiddenItems = listOf(expandable("hidden", item("b")))))
         store.dispatch(ExpansionToggled("hidden"))
 
-        store.dispatch(ItemsChanged(items = listOf(item("a"), item("b")), hiddenItems = listOf(expandable("hidden"))))
+        store.dispatch(
+            ItemsChanged(
+                items = listOf(item("a"), item("b")),
+                hiddenItems = listOf(expandable("hidden")),
+                movedItemId = "b",
+            )
+        )
 
         assertEquals(emptySet<String>(), store.state.expandedItemIds)
     }
@@ -91,7 +102,11 @@ class CustomizableMenuItemsStoreTest {
         store.dispatch(ExpansionToggled("more"))
 
         store.dispatch(
-            ItemsChanged(items = listOf(item("b"), item("a"), expandable("more")), hiddenItems = emptyList())
+            ItemsChanged(
+                items = listOf(item("b"), item("a"), expandable("more")),
+                hiddenItems = emptyList(),
+                movedItemId = "b",
+            )
         )
 
         assertEquals(setOf("more"), store.state.expandedItemIds)
@@ -132,12 +147,31 @@ class CustomizableMenuItemsStoreTest {
         )
 
         store.dispatch(
-            ItemsChanged(items = listOf(expandable("more", item("b")), item("a")), hiddenItems = emptyList())
+            ItemsChanged(
+                items = listOf(expandable("more", item("b")), item("a")),
+                hiddenItems = emptyList(),
+                movedItemId = "more",
+            )
         )
 
         assertEquals(listOf("more", "a"), store.state.items.map { it.id })
         assertEquals(emptyList<String>(), store.state.hiddenItems.map { it.id })
         assertEquals(setOf("more"), store.state.expandedItemIds)
+    }
+
+    @Test
+    fun `WHEN the user presses back THEN don't change the state`() {
+        val initialState =
+            CustomizableMenuItemsState(
+                items = listOf(item("a"), expandable("more", item("b"))),
+                hiddenItems = listOf(item("c")),
+                expandedItemIds = setOf("more"),
+            )
+        val store = CustomizableMenuItemsStore(initialState = initialState)
+
+        store.dispatch(BackPressed)
+
+        assertEquals(initialState, store.state)
     }
 
     private fun item(id: String) =

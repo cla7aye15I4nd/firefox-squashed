@@ -270,18 +270,17 @@ static nsresult CancelSpeculativeAddrPrefetch(
 }
 
 nsresult HTMLDNSPrefetch::Prefetch(
-    const nsAString& hostname, bool isHttps,
+    const nsACString& hostname,
     const OriginAttributes& aPartitionedPrincipalOriginAttributes,
     nsIDNSService::DNSFlags flags) {
   if (IsNeckoChild()) {
     // We need to check IsEmpty() because net_IsValidDNSHost()
     // considers empty strings to be valid hostnames
-    if (!hostname.IsEmpty() &&
-        net_IsValidDNSHost(NS_ConvertUTF16toUTF8(hostname))) {
+    if (!hostname.IsEmpty() && net_IsValidDNSHost(hostname)) {
       // during shutdown gNeckoChild might be null
       if (gNeckoChild) {
         gNeckoChild->SendHTMLDNSPrefetch(
-            hostname, isHttps, aPartitionedPrincipalOriginAttributes, flags);
+            hostname, aPartitionedPrincipalOriginAttributes, flags);
       }
     }
     return NS_OK;
@@ -294,21 +293,21 @@ nsresult HTMLDNSPrefetch::Prefetch(
       StaticPrefs::network_dns_use_https_rr_as_altsvc()) {
     nsCOMPtr<nsICancelable> tmpOutstanding;
     (void)sDNSService->AsyncResolveNative(
-        NS_ConvertUTF16toUTF8(hostname), nsIDNSService::RESOLVE_TYPE_HTTPSSVC,
+        hostname, nsIDNSService::RESOLVE_TYPE_HTTPSSVC,
         flags | nsIDNSService::RESOLVE_SPECULATE, nullptr, sDNSListener,
         nullptr, aPartitionedPrincipalOriginAttributes,
         getter_AddRefs(tmpOutstanding));
   }
 
-  return IssueSpeculativeAddrPrefetch(NS_ConvertUTF16toUTF8(hostname), flags,
+  return IssueSpeculativeAddrPrefetch(hostname, flags,
                                       aPartitionedPrincipalOriginAttributes);
 }
 
 nsresult HTMLDNSPrefetch::Prefetch(
-    const nsAString& hostname, bool isHttps,
+    const nsACString& hostname,
     const OriginAttributes& aPartitionedPrincipalOriginAttributes,
     nsIRequest::TRRMode aMode, Priority aPriority) {
-  return Prefetch(hostname, isHttps, aPartitionedPrincipalOriginAttributes,
+  return Prefetch(hostname, aPartitionedPrincipalOriginAttributes,
                   nsIDNSService::GetFlagsFromTRRMode(aMode) |
                       PriorityToDNSServiceFlags(aPriority));
 }
@@ -333,32 +332,26 @@ nsresult HTMLDNSPrefetch::CancelPrefetch(SupportsDNSPrefetch& aSupports,
   nsAutoCString hostname;
   uri->GetAsciiHost(hostname);
 
-  nsAutoString protocol;
-  bool isHttps = uri->SchemeIs("https");
-
   OriginAttributes oa;
   StoragePrincipalHelper::GetOriginAttributesForNetworkState(
       aElement.OwnerDoc(), oa);
 
-  return CancelPrefetch(NS_ConvertUTF8toUTF16(hostname), isHttps, oa, flags,
-                        aReason);
+  return CancelPrefetch(hostname, oa, flags, aReason);
 }
 
 nsresult HTMLDNSPrefetch::CancelPrefetch(
-    const nsAString& hostname, bool isHttps,
+    const nsACString& hostname,
     const OriginAttributes& aPartitionedPrincipalOriginAttributes,
     nsIDNSService::DNSFlags flags, nsresult aReason) {
   // Forward this request to Necko Parent if we're a child process
   if (IsNeckoChild()) {
     // We need to check IsEmpty() because net_IsValidDNSHost()
     // considers empty strings to be valid hostnames
-    if (!hostname.IsEmpty() &&
-        net_IsValidDNSHost(NS_ConvertUTF16toUTF8(hostname))) {
+    if (!hostname.IsEmpty() && net_IsValidDNSHost(hostname)) {
       // during shutdown gNeckoChild might be null
       if (gNeckoChild && gNeckoChild->CanSend()) {
         gNeckoChild->SendCancelHTMLDNSPrefetch(
-            hostname, isHttps, aPartitionedPrincipalOriginAttributes, flags,
-            aReason);
+            hostname, aPartitionedPrincipalOriginAttributes, flags, aReason);
       }
     }
     return NS_OK;
@@ -370,13 +363,12 @@ nsresult HTMLDNSPrefetch::CancelPrefetch(
 
   // Forward cancellation to DNS service
   nsresult rv = CancelSpeculativeAddrPrefetch(
-      NS_ConvertUTF16toUTF8(hostname), flags, aReason,
-      aPartitionedPrincipalOriginAttributes);
+      hostname, flags, aReason, aPartitionedPrincipalOriginAttributes);
 
   if (StaticPrefs::network_dns_upgrade_with_https_rr() ||
       StaticPrefs::network_dns_use_https_rr_as_altsvc()) {
     (void)sDNSService->CancelAsyncResolveNative(
-        NS_ConvertUTF16toUTF8(hostname), nsIDNSService::RESOLVE_TYPE_HTTPSSVC,
+        hostname, nsIDNSService::RESOLVE_TYPE_HTTPSSVC,
         flags | nsIDNSService::RESOLVE_SPECULATE,
         nullptr,  // AdditionalInfo
         sDNSListener, aReason, aPartitionedPrincipalOriginAttributes);
@@ -385,11 +377,10 @@ nsresult HTMLDNSPrefetch::CancelPrefetch(
 }
 
 nsresult HTMLDNSPrefetch::CancelPrefetch(
-    const nsAString& hostname, bool isHttps,
+    const nsACString& hostname,
     const OriginAttributes& aPartitionedPrincipalOriginAttributes,
     nsIRequest::TRRMode aTRRMode, Priority aPriority, nsresult aReason) {
-  return CancelPrefetch(hostname, isHttps,
-                        aPartitionedPrincipalOriginAttributes,
+  return CancelPrefetch(hostname, aPartitionedPrincipalOriginAttributes,
                         nsIDNSService::GetFlagsFromTRRMode(aTRRMode) |
                             PriorityToDNSServiceFlags(aPriority),
                         aReason);
@@ -431,13 +422,10 @@ void HTMLDNSPrefetch::SendRequest(Element& aElement,
   StoragePrincipalHelper::GetOriginAttributesForNetworkState(
       aElement.OwnerDoc(), oa);
 
-  bool isHttps = uri->SchemeIs("https");
-
   if (IsNeckoChild()) {
     // during shutdown gNeckoChild might be null
     if (gNeckoChild) {
-      gNeckoChild->SendHTMLDNSPrefetch(NS_ConvertUTF8toUTF16(hostName), isHttps,
-                                       oa, aFlags);
+      gNeckoChild->SendHTMLDNSPrefetch(hostName, oa, aFlags);
     }
   } else {
     // Fetch HTTPS RR if needed.
@@ -572,8 +560,7 @@ static bool BuildPrefetchArgs(SupportsDNSPrefetch& aSupports, Element& aElement,
   OriginAttributes oa;
   StoragePrincipalHelper::GetOriginAttributesForNetworkState(
       aElement.OwnerDoc(), oa);
-  aOut = HTMLDNSPrefetchArgs(NS_ConvertUTF8toUTF16(hostName),
-                             uri->SchemeIs("https"), oa, aFlags);
+  aOut = HTMLDNSPrefetchArgs(hostName, oa, aFlags);
   return true;
 }
 

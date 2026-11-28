@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasScrollAction
@@ -104,6 +106,30 @@ class MenuTest {
     }
 
     @Test
+    fun `GIVEN a navigation only sticky header THEN keep the spacing around it`() {
+        setMenu(listOf(stickyGroup("Header"), row("Item")))
+
+        val menuBounds = composeTestRule.onNodeWithTag("menu").getUnclippedBoundsInRoot()
+        val headerBounds = composeTestRule.onNodeWithContentDescription("Header").getUnclippedBoundsInRoot()
+        val listBounds = composeTestRule.onNode(hasScrollAction()).getUnclippedBoundsInRoot()
+        assertEquals(12f, (headerBounds.top - menuBounds.top).value, 0.5f)
+        assertEquals(8f, (listBounds.top - headerBounds.bottom).value, 0.5f)
+    }
+
+    @Test
+    fun `GIVEN a sticky header followed by a banner THEN space the banner from the header`() {
+        val bannerGroup = MenuItemsGroup.Row(id = "banner", items = listOf(banner))
+        val store = setMenu(listOf(bannerGroup, row("Item")))
+        val offsetWithoutHeader = bannerOffsetInList()
+
+        composeTestRule.runOnIdle {
+            store.dispatch(MenuAction.Update(listOf(stickyGroup("Header"), bannerGroup, row("Item"))))
+        }
+
+        assertEquals(offsetWithoutHeader, bannerOffsetInList(), 0.5f)
+    }
+
+    @Test
     fun `GIVEN a single sticky group THEN show it only once`() {
         setMenu(listOf(stickyGroup("Header")))
 
@@ -194,6 +220,16 @@ class MenuTest {
     }
 
     @Test
+    fun `WHEN clicking the button of a banner THEN dispatch its click event`() {
+        val events = mutableListOf<MenuAction>()
+        setMenu(listOf(MenuItemsGroup.Row(id = "banner", items = listOf(banner))), middleware = recording(events))
+
+        composeTestRule.onNodeWithText(BANNER_BUTTON).performClick()
+
+        assertEquals(listOf<MenuAction>(BannerClicked), events.filterIsInstance<MenuEvent>())
+    }
+
+    @Test
     fun `WHEN dismissing a banner THEN dispatch its dismiss event`() {
         val closeButtonContentDescription =
             testContext.getString(MozacMenuR.string.mozac_menu_banner_dismiss_description)
@@ -239,6 +275,27 @@ class MenuTest {
     }
 
     @Test
+    fun `GIVEN a grid without titles moved between other sections THEN its items are 48dp tall`() {
+        setMenu(listOf(row("Top"), iconsGrid(), row("Bottom")))
+
+        composeTestRule.onNodeWithContentDescription("Icon 1").assertHeightIsEqualTo(48.dp)
+    }
+
+    @Test
+    fun `GIVEN a grid with titles between other sections THEN its items keep space above and below their content`() {
+        setMenu(listOf(row("Top"), iconsGrid(showTitles = true), row("Bottom")))
+
+        composeTestRule.onNode(hasText("Icon 1")).assertHeightIsAtLeast(52.dp)
+    }
+
+    @Test
+    fun `GIVEN a grid without titles as the sticky header THEN its items stay 48dp tall`() {
+        setMenu(listOf(iconsGrid(), row("Item")))
+
+        composeTestRule.onNodeWithContentDescription("Icon 1").assertHeightIsEqualTo(48.dp)
+    }
+
+    @Test
     fun `WHEN menu with sticky header is scrollable THEN report dark header background`() {
         var isHeaderDark = false
         val groups = listOf(stickyGroup("Header")) + List(20) { row("Item $it") }
@@ -258,6 +315,12 @@ class MenuTest {
         composeTestRule.runOnIdle {
             assertTrue(isHeaderDark)
         }
+    }
+
+    private fun bannerOffsetInList(): Float {
+        val listBounds = composeTestRule.onNode(hasScrollAction()).getUnclippedBoundsInRoot()
+        val bannerBounds = composeTestRule.onNodeWithText(BANNER_TITLE).getUnclippedBoundsInRoot()
+        return (bannerBounds.top - listBounds.top).value
     }
 
     private fun recording(events: MutableList<MenuAction>): List<Middleware<MenuState, MenuAction>> =
@@ -287,6 +350,14 @@ class MenuTest {
     private fun stickyGroup(title: String) =
         MenuItemsGroup.Grid(id = title, items = listOf(item(title)), isSticky = true)
 
+    private fun iconsGrid(showTitles: Boolean = false) =
+        MenuItemsGroup.Grid(
+            id = "icons",
+            items = (1..5).map { item("Icon $it") },
+            isSticky = true,
+            showTitles = showTitles,
+        )
+
     private data object BannerClicked : MenuEvent
 
     private data object BannerDismissed : MenuEvent
@@ -296,6 +367,7 @@ class MenuTest {
             title = MenuItemTitle(Text.String(BANNER_TITLE)),
             summary = MenuItemSummary(Text.String(BANNER_SUBTITLE)),
             icon = MenuItemIconRes(iconsR.drawable.mozac_ic_globe_24),
+            actionButtonText = Text.String(BANNER_BUTTON),
             onClickEvent = BannerClicked,
             onDismissEvent = BannerDismissed,
         )
@@ -310,5 +382,6 @@ class MenuTest {
     private companion object {
         const val BANNER_TITLE = "Banner title"
         const val BANNER_SUBTITLE = "Banner subtitle"
+        const val BANNER_BUTTON = "Banner button"
     }
 }

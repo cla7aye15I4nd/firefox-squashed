@@ -90,6 +90,9 @@ export const LocalModeMappings = {
       LOCAL_MODE_MAPPINGS_PREF_PREFIX,
       prefObserver
     );
+    // Clear any pending debounce timeout, which would otherwise call
+    // updateMappings with the destroyed toolbox.
+    prefObserver.cancel();
   },
 
   getAllMappings,
@@ -465,14 +468,8 @@ function showLocalModeNotice(toolbox) {
         );
 
         // Open the Options panel
-        const { panelDoc } = await toolbox.selectTool("options");
-
-        // Highlight the created mapping item
-        const mappingItem = panelDoc
-          .querySelector(`[data-pref-prefix="${prefPrefix}"]`)
-          .closest("li");
-        mappingItem.scrollIntoView({ block: "center" });
-        mappingItem.classList.add("options-panel-highlight");
+        const panel = await toolbox.selectTool("options");
+        await panel.highlightLocalModeMapping(prefPrefix);
 
         // Navigate to the mapping's URL
         await toolbox.commands.targetCommand.navigateTo(url + "/" + filename);

@@ -6,6 +6,7 @@
 #include "mozilla/Maybe.h"
 #include "mozilla/ScopeExit.h"
 #include "mozilla/StaticPrefs_network.h"
+#include "mozilla/UniquePtr.h"
 #include "mozilla/glean/NetwerkMetrics.h"
 #include "mozilla/net/DNSPacket.h"
 #include "nsIDNSService.h"
@@ -18,6 +19,7 @@
 #  undef UNICODE
 #  include <ws2tcpip.h>
 #  undef GetAddrInfo
+#  include <iphlpapi.h>
 #  include <windns.h>
 #endif  // DNSQUERY_AVAILABLE
 
@@ -26,27 +28,64 @@ namespace mozilla::net {
 #define LOG(msg, ...) \
   MOZ_LOG(gGetAddrInfoLog, LogLevel::Debug, ("[DNS]: " msg, ##__VA_ARGS__))
 
+// Captures every unencrypted resolver configured on the system by enumerating
+// the DNS servers of all operational network adapters. Used for RFC 9462 DDR
+// verification: any of these resolvers may have answered the query, so
+// verification accepts a designated resolver whose certificate covers any one
+// of them.
+static void CaptureResolverAddrs(nsTArray<NetAddr>& aOut) {
+  ULONG bufLen = 15000;
+  UniquePtr<uint8_t[]> buf;
+  ULONG ret = ERROR_BUFFER_OVERFLOW;
+  for (int attempts = 0; attempts < 3 && ret == ERROR_BUFFER_OVERFLOW;
+       attempts++) {
+    buf = std::make_unique<uint8_t[]>(bufLen);
+    ret = GetAdaptersAddresses(
+        AF_UNSPEC,
+        GAA_FLAG_SKIP_UNICAST | GAA_FLAG_SKIP_ANYCAST |
+            GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_FRIENDLY_NAME,
+        nullptr, reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buf.get()), &bufLen);
+  }
+  if (ret != ERROR_SUCCESS) {
+    LOG("GetAdaptersAddresses failed: %lu", ret);
+    return;
+  }
+
+  for (auto* adapter = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buf.get());
+       adapter; adapter = adapter->Next) {
+    if (adapter->OperStatus != IfOperStatusUp) {
+      continue;
+    }
+    for (auto* dns = adapter->FirstDnsServerAddress; dns; dns = dns->Next) {
+      NetAddr addr;
+      if (SockaddrToNetAddr(dns->Address.lpSockaddr, addr)) {
+        AppendResolverAddr(aOut, addr);
+      }
+    }
+  }
+}
+
 nsresult ParseHTTPSRecordList(const DNS_RECORDA* aRecords,
                               const nsACString& aHost,
                               const Maybe<nsCString>& aOriginHost,
                               TypeRecordResultType& aResult, uint32_t& aTTL,
-                              HTTPSAliasTarget& aAlias) {
+                              HTTPSAliasTarget& aAlias, uint16_t aType) {
   nsAutoCString host(aHost);
   nsAutoCString cname;
   // True when |cname| came from an HTTPS AliasMode record rather than a CNAME.
   bool cnameIsAlias = false;
   aTTL = UINT32_MAX;
 
-  auto CheckRecords = [&aResult, &cname, &cnameIsAlias, &aTTL, &aOriginHost](
-                          const DNS_RECORDA* result,
-                          const nsCString& aHost) -> nsresult {
+  auto CheckRecords = [&aResult, &cname, &cnameIsAlias, &aTTL, &aOriginHost,
+                       aType](const DNS_RECORDA* result,
+                              const nsCString& aHost) -> nsresult {
     for (const DNS_RECORDA* current = result; current;
          current = current->pNext) {
       if (!current->pName ||
           !DNSPacket::IsSameName(nsDependentCString(current->pName), aHost)) {
         continue;
       }
-      if (current->wType == nsIDNSService::RESOLVE_TYPE_HTTPSSVC) {
+      if (current->wType == aType) {
         const unsigned char* ptr = (const unsigned char*)&(current->Data);
         struct SVCB parsed;
         nsresult rv = DNSPacket::ParseHTTPS(current->wDataLength, parsed, 0,
@@ -141,7 +180,8 @@ nsresult ResolveHTTPSRecordImpl(const nsACString& aHost,
                                 const Maybe<nsCString>& aOriginHost,
                                 nsIDNSService::DNSFlags aFlags,
                                 TypeRecordResultType& aResult, uint32_t& aTTL,
-                                HTTPSAliasTarget& aAlias) {
+                                HTTPSAliasTarget& aAlias, uint16_t aType,
+                                nsTArray<NetAddr>* aResolverAddrs) {
   nsAutoCString host(aHost);
   PDNS_RECORD result = nullptr;
 
@@ -152,12 +192,13 @@ nsresult ResolveHTTPSRecordImpl(const nsACString& aHost,
 
   TimeStamp startTime = TimeStamp::Now();
 
-  DNS_STATUS status =
-      DnsQuery_A(host.get(), nsIDNSService::RESOLVE_TYPE_HTTPSSVC,
-                 DNS_QUERY_STANDARD, nullptr, &result, nullptr);
+  DNS_STATUS status = DnsQuery_A(host.get(), aType, DNS_QUERY_STANDARD, nullptr,
+                                 &result, nullptr);
 
-  mozilla::glean::networking::dns_native_https_call_time.AccumulateRawDuration(
-      TimeStamp::Now() - startTime);
+  if (aType == nsIDNSService::RESOLVE_TYPE_HTTPSSVC) {
+    mozilla::glean::networking::dns_native_https_call_time
+        .AccumulateRawDuration(TimeStamp::Now() - startTime);
+  }
 
   if (status != ERROR_SUCCESS) {
     LOG("DnsQuery_A failed with error: %ld\n", status);
@@ -167,7 +208,12 @@ nsresult ResolveHTTPSRecordImpl(const nsACString& aHost,
   auto freeDnsRecord =
       MakeScopeExit([&]() { DnsRecordListFree(result, DnsFreeRecordList); });
 
-  return ParseHTTPSRecordList(result, host, aOriginHost, aResult, aTTL, aAlias);
+  if (aResolverAddrs) {
+    CaptureResolverAddrs(*aResolverAddrs);
+  }
+
+  return ParseHTTPSRecordList(result, host, aOriginHost, aResult, aTTL, aAlias,
+                              aType);
 }
 
 void DNSThreadShutdown() {}

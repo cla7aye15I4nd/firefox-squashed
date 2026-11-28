@@ -19,6 +19,7 @@ import io.mockk.verify
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -89,7 +90,16 @@ import org.mozilla.fenix.components.appstate.SupportedMenuNotifications
 import org.mozilla.fenix.components.appstate.VoiceSearchAction.VoiceInputRequested
 import org.mozilla.fenix.components.appstate.search.SearchState
 import org.mozilla.fenix.components.appstate.search.SelectedSearchEngine
+import org.mozilla.fenix.components.menu.CustomizedItemInfo
+import org.mozilla.fenix.components.menu.CustomizedMenuInfo
+import org.mozilla.fenix.components.menu.CustomizedSectionInfo
 import org.mozilla.fenix.components.menu.MenuAccessPoint
+import org.mozilla.fenix.components.menu.MenuCustomizationRepository
+import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration
+import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration.ACCOUNTS_AND_SETTINGS_GROUP_ID
+import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration.LIBRARY_GROUP_ID
+import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration.TOOLS_GROUP_ID
+import org.mozilla.fenix.components.menu.configuration.FenixMenuItem
 import org.mozilla.fenix.components.usecases.FenixBrowserUseCases
 import org.mozilla.fenix.ext.components
 import org.mozilla.fenix.ext.nav
@@ -144,6 +154,8 @@ class BrowserToolbarMiddlewareTest {
         every { testContext.components.settings.toolbarExpandedShortcutKey } returns ShortcutType.BOOKMARK.value
         every { testContext.components.settings.showVoiceSearchInDisplayToolbar } returns false
         every { testContext.components.settings.shouldShowVoiceSearch } returns true
+        every { testContext.components.settings.isMenuCustomizationScreenEnabled } returns false
+        every { testContext.components.settings.isToolsMenuCustomizationEnabled } returns false
     }
 
     @Test
@@ -1631,6 +1643,284 @@ class BrowserToolbarMiddlewareTest {
             )
         }
 
+    @Test
+    fun `GIVEN a downloads notification WHEN library is hidden, shown and hidden again THEN the menu button highlight follows`() =
+        runTest {
+            val appStore =
+                AppStore(
+                    initialState = AppState(supportedMenuNotifications = setOf(SupportedMenuNotifications.Downloads))
+                )
+            val libraryHidden =
+                CustomizedMenuInfo(
+                    visibleSectionIds = listOf(ACCOUNTS_AND_SETTINGS_GROUP_ID),
+                    hiddenSectionIds = listOf(LIBRARY_GROUP_ID),
+                )
+            val customizedMenuInfoFlow = MutableStateFlow<CustomizedMenuInfo?>(libraryHidden)
+            val (_, toolbarStore) =
+                buildMiddlewareAndAddToStore(
+                    appStore = appStore,
+                    menuCustomizationRepository =
+                        menuCustomizationRepository(customizedMenuInfo = customizedMenuInfoFlow),
+                )
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(
+                expected = expectedMenuButton(false),
+                actual = toolbarStore.state.displayState.browserActionsEnd[1] as ActionButtonRes,
+            )
+
+            customizedMenuInfoFlow.value =
+                CustomizedMenuInfo(
+                    visibleSectionIds = listOf(LIBRARY_GROUP_ID, ACCOUNTS_AND_SETTINGS_GROUP_ID),
+                    hiddenSectionIds = emptyList(),
+                )
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(
+                expected = expectedMenuButton(true),
+                actual = toolbarStore.state.displayState.browserActionsEnd[1] as ActionButtonRes,
+            )
+
+            customizedMenuInfoFlow.value = libraryHidden
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(
+                expected = expectedMenuButton(false),
+                actual = toolbarStore.state.displayState.browserActionsEnd[1] as ActionButtonRes,
+            )
+        }
+
+    @Test
+    fun `GIVEN an expanded toolbar and a downloads notification WHEN library is hidden and shown again THEN the menu button in the navigation bar follows`() =
+        runTest {
+            every { testContext.components.settings.shouldUseExpandedToolbar } returns true
+            val appStore =
+                AppStore(
+                    initialState = AppState(supportedMenuNotifications = setOf(SupportedMenuNotifications.Downloads))
+                )
+            val customizedMenuInfoFlow =
+                MutableStateFlow<CustomizedMenuInfo?>(
+                    CustomizedMenuInfo(
+                        visibleSectionIds = listOf(ACCOUNTS_AND_SETTINGS_GROUP_ID),
+                        hiddenSectionIds = listOf(LIBRARY_GROUP_ID),
+                    )
+                )
+            val (_, toolbarStore) =
+                buildMiddlewareAndAddToStore(
+                    appStore = appStore,
+                    menuCustomizationRepository =
+                        menuCustomizationRepository(customizedMenuInfo = customizedMenuInfoFlow),
+                )
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(
+                expected = expectedMenuButton(highlighted = false, source = Source.NavigationBar),
+                actual = toolbarStore.state.displayState.navigationActions[4] as ActionButtonRes,
+            )
+
+            customizedMenuInfoFlow.value =
+                CustomizedMenuInfo(
+                    visibleSectionIds = listOf(LIBRARY_GROUP_ID, ACCOUNTS_AND_SETTINGS_GROUP_ID),
+                    hiddenSectionIds = emptyList(),
+                )
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(
+                expected = expectedMenuButton(highlighted = true, source = Source.NavigationBar),
+                actual = toolbarStore.state.displayState.navigationActions[4] as ActionButtonRes,
+            )
+        }
+
+    @Test
+    fun `GIVEN tools customization is on and an extension update notification WHEN extensions is hidden, shown and hidden again THEN the menu button highlight follows`() =
+        runTest {
+            every { testContext.components.settings.isToolsMenuCustomizationEnabled } returns true
+            val appStore =
+                AppStore(
+                    initialState =
+                        AppState(supportedMenuNotifications = setOf(SupportedMenuNotifications.ExtensionUpdate))
+                )
+            val extensionsHidden =
+                mapOf(
+                    TOOLS_GROUP_ID to
+                        CustomizedSectionInfo(
+                            sectionId = TOOLS_GROUP_ID,
+                            items = listOf(CustomizedItemInfo(FenixMenuItem.FindInPage.id)),
+                            hiddenItems = listOf(CustomizedItemInfo(FenixMenuItem.Extensions.id)),
+                        )
+                )
+            val sectionsInfoFlow = MutableStateFlow<Map<String, CustomizedSectionInfo>?>(extensionsHidden)
+            val (_, toolbarStore) =
+                buildMiddlewareAndAddToStore(
+                    appStore = appStore,
+                    menuCustomizationRepository =
+                        menuCustomizationRepository(customizedSectionsInfo = sectionsInfoFlow),
+                )
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(
+                expected = expectedMenuButton(false),
+                actual = toolbarStore.state.displayState.browserActionsEnd[1] as ActionButtonRes,
+            )
+
+            sectionsInfoFlow.value =
+                mapOf(
+                    TOOLS_GROUP_ID to
+                        CustomizedSectionInfo(
+                            sectionId = TOOLS_GROUP_ID,
+                            items =
+                                listOf(
+                                    CustomizedItemInfo(FenixMenuItem.FindInPage.id),
+                                    CustomizedItemInfo(FenixMenuItem.Extensions.id),
+                                ),
+                            hiddenItems = emptyList(),
+                        )
+                )
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(
+                expected = expectedMenuButton(true),
+                actual = toolbarStore.state.displayState.browserActionsEnd[1] as ActionButtonRes,
+            )
+
+            sectionsInfoFlow.value = extensionsHidden
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(
+                expected = expectedMenuButton(false),
+                actual = toolbarStore.state.displayState.browserActionsEnd[1] as ActionButtonRes,
+            )
+        }
+
+    @Test
+    fun `GIVEN tools customization is off WHEN extensions was hidden and an extension update notification is added THEN the menu button stays highlighted`() =
+        runTest {
+            val appStore = AppStore()
+            val sectionsInfoFlow =
+                MutableStateFlow<Map<String, CustomizedSectionInfo>?>(
+                    mapOf(
+                        TOOLS_GROUP_ID to
+                            CustomizedSectionInfo(
+                                sectionId = TOOLS_GROUP_ID,
+                                items = listOf(CustomizedItemInfo(FenixMenuItem.FindInPage.id)),
+                                hiddenItems = listOf(CustomizedItemInfo(FenixMenuItem.Extensions.id)),
+                            )
+                    )
+                )
+            val (middleware, toolbarStore) =
+                buildMiddlewareAndAddToStore(
+                    appStore = appStore,
+                    menuCustomizationRepository =
+                        menuCustomizationRepository(customizedSectionsInfo = sectionsInfoFlow),
+                )
+
+            appStore.dispatch(
+                AppAction.MenuNotification.AddMenuNotification(SupportedMenuNotifications.ExtensionUpdate)
+            )
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(
+                expected = expectedMenuButton(true),
+                actual = toolbarStore.state.displayState.browserActionsEnd[1] as ActionButtonRes,
+            )
+            assertTrue((middleware.buildHomeAction(HomeToolbarAction.Menu) as ActionButtonRes).highlighted)
+        }
+
+    @Test
+    fun `GIVEN a downloads notification WHEN the menu customization is not read yet THEN the menu button is not highlighted until it is read`() =
+        runTest {
+            every { testContext.components.settings.isMenuCustomizationScreenEnabled } returns true
+            val appStore =
+                AppStore(
+                    initialState = AppState(supportedMenuNotifications = setOf(SupportedMenuNotifications.Downloads))
+                )
+            val customizedMenuInfoFlow = MutableStateFlow<CustomizedMenuInfo?>(null)
+            val (_, toolbarStore) =
+                buildMiddlewareAndAddToStore(
+                    appStore = appStore,
+                    menuCustomizationRepository =
+                        menuCustomizationRepository(customizedMenuInfo = customizedMenuInfoFlow),
+                )
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(
+                expected = expectedMenuButton(false),
+                actual = toolbarStore.state.displayState.browserActionsEnd[1] as ActionButtonRes,
+            )
+
+            customizedMenuInfoFlow.value =
+                CustomizedMenuInfo(
+                    visibleSectionIds = listOf(LIBRARY_GROUP_ID, ACCOUNTS_AND_SETTINGS_GROUP_ID),
+                    hiddenSectionIds = emptyList(),
+                )
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(
+                expected = expectedMenuButton(true),
+                actual = toolbarStore.state.displayState.browserActionsEnd[1] as ActionButtonRes,
+            )
+        }
+
+    @Test
+    fun `GIVEN tools customization is on and an extension update notification WHEN the menu customization is read before the tools items THEN the menu button is highlighted only after both are read`() =
+        runTest {
+            every { testContext.components.settings.isMenuCustomizationScreenEnabled } returns true
+            every { testContext.components.settings.isToolsMenuCustomizationEnabled } returns true
+            val appStore =
+                AppStore(
+                    initialState =
+                        AppState(supportedMenuNotifications = setOf(SupportedMenuNotifications.ExtensionUpdate))
+                )
+            val customizedMenuInfoFlow = MutableStateFlow<CustomizedMenuInfo?>(null)
+            val sectionsInfoFlow = MutableStateFlow<Map<String, CustomizedSectionInfo>?>(null)
+            val (_, toolbarStore) =
+                buildMiddlewareAndAddToStore(
+                    appStore = appStore,
+                    menuCustomizationRepository =
+                        menuCustomizationRepository(
+                            customizedMenuInfo = customizedMenuInfoFlow,
+                            customizedSectionsInfo = sectionsInfoFlow,
+                        ),
+                )
+
+            customizedMenuInfoFlow.value =
+                BrowserMenuConfiguration.defaultMenuInfo(isToolbarAtBottom = false, isExpandedToolbarEnabled = false)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(
+                expected = expectedMenuButton(false),
+                actual = toolbarStore.state.displayState.browserActionsEnd[1] as ActionButtonRes,
+            )
+
+            sectionsInfoFlow.value =
+                mapOf(
+                    TOOLS_GROUP_ID to
+                        CustomizedSectionInfo(
+                            sectionId = TOOLS_GROUP_ID,
+                            items =
+                                listOf(
+                                    CustomizedItemInfo(FenixMenuItem.FindInPage.id),
+                                    CustomizedItemInfo(FenixMenuItem.Extensions.id),
+                                ),
+                            hiddenItems = emptyList(),
+                        )
+                )
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertEquals(
+                expected = expectedMenuButton(true),
+                actual = toolbarStore.state.displayState.browserActionsEnd[1] as ActionButtonRes,
+            )
+        }
+
+    private fun menuCustomizationRepository(
+        customizedMenuInfo: MutableStateFlow<CustomizedMenuInfo?> =
+            MutableStateFlow(
+                BrowserMenuConfiguration.defaultMenuInfo(isToolbarAtBottom = false, isExpandedToolbarEnabled = false)
+            ),
+        customizedSectionsInfo: MutableStateFlow<Map<String, CustomizedSectionInfo>?> = MutableStateFlow(emptyMap()),
+    ): MenuCustomizationRepository {
+        val repository: MenuCustomizationRepository = mockk()
+        every { repository.customizedMenuInfo } returns customizedMenuInfo
+        every { repository.customizedSectionsInfo } returns customizedSectionsInfo
+        return repository
+    }
+
     private fun navControllerShowingHome(): NavController =
         mockk(relaxed = true) { every { currentDestination } returns mockk { every { id } returns R.id.homeFragment } }
 
@@ -1645,6 +1935,7 @@ class BrowserToolbarMiddlewareTest {
         privateBrowsingController: PrivateBrowsingController = mockk(relaxed = true),
         settings: Settings = testContext.components.settings,
         translationsFeatureSettings: TranslationsEnabledSettings = this.translationsFeatureSettings,
+        menuCustomizationRepository: MenuCustomizationRepository? = null,
         isWideScreen: () -> Boolean = { false },
         isTallScreen: () -> Boolean = { true },
     ): Pair<BrowserToolbarMiddleware, BrowserToolbarStore> {
@@ -1660,6 +1951,7 @@ class BrowserToolbarMiddlewareTest {
                 privateBrowsingController = privateBrowsingController,
                 settings = settings,
                 translationsFeatureSettings = translationsFeatureSettings,
+                menuCustomizationRepository = menuCustomizationRepository,
                 isWideScreen = isWideScreen,
                 isTallScreen = isTallScreen,
             )
@@ -1679,6 +1971,7 @@ class BrowserToolbarMiddlewareTest {
         privateBrowsingController: PrivateBrowsingController = mockk(relaxed = true),
         settings: Settings = testContext.components.settings,
         translationsFeatureSettings: TranslationsEnabledSettings = this.translationsFeatureSettings,
+        menuCustomizationRepository: MenuCustomizationRepository? = null,
         isWideScreen: () -> Boolean = { false },
         isTallScreen: () -> Boolean = { true },
     ) =
@@ -1693,6 +1986,7 @@ class BrowserToolbarMiddlewareTest {
             privateBrowsingController = privateBrowsingController,
             settings = settings,
             translationsFeatureSettings = translationsFeatureSettings,
+            menuCustomizationRepository = menuCustomizationRepository,
             isWideScreen = isWideScreen,
             isTallScreen = isTallScreen,
             scope = testScope,

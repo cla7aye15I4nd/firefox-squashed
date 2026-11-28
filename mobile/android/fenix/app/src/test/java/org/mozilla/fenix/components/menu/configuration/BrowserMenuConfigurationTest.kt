@@ -16,6 +16,7 @@ import org.mozilla.fenix.components.menu.CustomizedSectionInfo
 import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration.ACCOUNTS_AND_SETTINGS_GROUP_ID
 import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration.LIBRARY_GROUP_ID
 import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration.PAGE_CONTROLS_GROUP_ID
+import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration.PROMO_BANNER_GROUP_ID
 import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration.QUIT_GROUP_ID
 import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration.READER_VIEW_GROUP_ID
 import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration.TABS_CONTROLS_GROUP_ID
@@ -24,6 +25,7 @@ import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration.
 import org.mozilla.fenix.components.menu.configuration.FenixMenuItem.Back
 import org.mozilla.fenix.components.menu.configuration.FenixMenuItem.Bookmark
 import org.mozilla.fenix.components.menu.configuration.FenixMenuItem.CustomizeHomepage
+import org.mozilla.fenix.components.menu.configuration.FenixMenuItem.CustomizeMenuBanner
 import org.mozilla.fenix.components.menu.configuration.FenixMenuItem.DefaultBrowserBanner
 import org.mozilla.fenix.components.menu.configuration.FenixMenuItem.DesktopSite
 import org.mozilla.fenix.components.menu.configuration.FenixMenuItem.Extensions
@@ -47,6 +49,7 @@ class BrowserMenuConfigurationTest {
         val configuration =
             BrowserMenuConfiguration.sections(isToolbarAtBottom = true, isExpandedToolbarEnabled = false)
 
+        assertEquals(PROMO_BANNER_GROUP_ID, configuration.first().id)
         assertEquals(PAGE_CONTROLS_GROUP_ID, configuration.last().id)
     }
 
@@ -55,7 +58,80 @@ class BrowserMenuConfigurationTest {
         val configuration =
             BrowserMenuConfiguration.sections(isToolbarAtBottom = false, isExpandedToolbarEnabled = false)
 
-        assertEquals(PAGE_CONTROLS_GROUP_ID, configuration.first().id)
+        assertEquals(PAGE_CONTROLS_GROUP_ID, configuration.first { it.id != PROMO_BANNER_GROUP_ID }.id)
+    }
+
+    @Test
+    fun `WHEN building the browser menu THEN only the promo banner is shown first among the scrolling sections`() {
+        listOf(true, false).forEach { isToolbarAtBottom ->
+            val configuration =
+                BrowserMenuConfiguration.sections(
+                    isToolbarAtBottom = isToolbarAtBottom,
+                    isExpandedToolbarEnabled = false,
+                )
+
+            assertEquals(
+                listOf(PROMO_BANNER_GROUP_ID),
+                configuration.filter { it.isFirstScrollingSection }.map { it.id },
+            )
+        }
+    }
+
+    @Test
+    fun `WHEN building the browser menu THEN only the navigation block is sticky`() {
+        listOf(true, false).forEach { isToolbarAtBottom ->
+            val configuration =
+                BrowserMenuConfiguration.sections(
+                    isToolbarAtBottom = isToolbarAtBottom,
+                    isExpandedToolbarEnabled = false,
+                )
+
+            assertEquals(listOf(PAGE_CONTROLS_GROUP_ID), configuration.filter { it.isSticky }.map { it.id })
+        }
+    }
+
+    @Test
+    fun `GIVEN the user moved the navigation block away from the top WHEN building the browser menu THEN show the promo banner first`() {
+        val customization =
+            CustomizedMenuInfo(
+                visibleSectionIds =
+                    listOf(READER_VIEW_GROUP_ID, PAGE_CONTROLS_GROUP_ID, ACCOUNTS_AND_SETTINGS_GROUP_ID),
+                hiddenSectionIds = emptyList(),
+                isNavigationSectionMoved = true,
+            )
+
+        val configuration =
+            BrowserMenuConfiguration.sections(
+                isToolbarAtBottom = false,
+                isExpandedToolbarEnabled = false,
+                customizationInfo = customization,
+            )
+
+        assertEquals(
+            listOf(PROMO_BANNER_GROUP_ID, READER_VIEW_GROUP_ID, PAGE_CONTROLS_GROUP_ID, ACCOUNTS_AND_SETTINGS_GROUP_ID),
+            configuration.map { it.id },
+        )
+    }
+
+    @Test
+    fun `WHEN getting the sections the user can customize THEN don't include the promo banner`() {
+        listOf(true, false).forEach { isToolbarAtBottom ->
+            val customizableSections =
+                BrowserMenuConfiguration.customizableSections(
+                    isToolbarAtBottom = isToolbarAtBottom,
+                    isExpandedToolbarEnabled = false,
+                )
+            val defaultMenuInfo =
+                BrowserMenuConfiguration.defaultMenuInfo(
+                    isToolbarAtBottom = isToolbarAtBottom,
+                    isExpandedToolbarEnabled = false,
+                )
+
+            assertTrue(customizableSections.none { it.id == PROMO_BANNER_GROUP_ID })
+            assertFalse(PROMO_BANNER_GROUP_ID in defaultMenuInfo.visibleSectionIds)
+            assertFalse(PROMO_BANNER_GROUP_ID in defaultMenuInfo.hiddenSectionIds)
+        }
+        assertTrue(BrowserMenuConfiguration.allSections().none { it.id == PROMO_BANNER_GROUP_ID })
     }
 
     @Test
@@ -63,6 +139,7 @@ class BrowserMenuConfigurationTest {
         val configuration =
             BrowserMenuConfiguration.sections(isToolbarAtBottom = false, isExpandedToolbarEnabled = true)
 
+        assertEquals(PROMO_BANNER_GROUP_ID, configuration.first().id)
         assertEquals(PAGE_CONTROLS_GROUP_ID, configuration.last().id)
     }
 
@@ -71,7 +148,7 @@ class BrowserMenuConfigurationTest {
         val configuration =
             BrowserMenuConfiguration.sections(isToolbarAtBottom = false, isExpandedToolbarEnabled = false)
 
-        assertTrue(configuration.none { DefaultBrowserBanner in it.items || CustomizeHomepage in it.items })
+        assertTrue(configuration.none { CustomizeHomepage in it.items })
     }
 
     @Test
@@ -79,10 +156,10 @@ class BrowserMenuConfigurationTest {
         val customization =
             menuInfo(shown = listOf(TOOLS_GROUP_ID, READER_VIEW_GROUP_ID, ACCOUNTS_AND_SETTINGS_GROUP_ID))
         val defaultSections =
-            BrowserMenuConfiguration.sections(isToolbarAtBottom = false, isExpandedToolbarEnabled = false)
+            BrowserMenuConfiguration.customizableSections(isToolbarAtBottom = false, isExpandedToolbarEnabled = false)
 
         val configuration =
-            BrowserMenuConfiguration.sections(
+            BrowserMenuConfiguration.customizableSections(
                 isToolbarAtBottom = false,
                 isExpandedToolbarEnabled = false,
                 customizationInfo = customization,
@@ -99,7 +176,7 @@ class BrowserMenuConfigurationTest {
         val customization = menuInfo(shown = listOf(READER_VIEW_GROUP_ID, "removed", ACCOUNTS_AND_SETTINGS_GROUP_ID))
 
         val configuration =
-            BrowserMenuConfiguration.sections(
+            BrowserMenuConfiguration.customizableSections(
                 isToolbarAtBottom = false,
                 isExpandedToolbarEnabled = false,
                 customizationInfo = customization,
@@ -114,7 +191,7 @@ class BrowserMenuConfigurationTest {
             menuInfo(shown = listOf(PAGE_CONTROLS_GROUP_ID, READER_VIEW_GROUP_ID, ACCOUNTS_AND_SETTINGS_GROUP_ID))
 
         val configuration =
-            BrowserMenuConfiguration.sections(
+            BrowserMenuConfiguration.customizableSections(
                 isToolbarAtBottom = true,
                 isExpandedToolbarEnabled = false,
                 customizationInfo = customization,
@@ -132,7 +209,7 @@ class BrowserMenuConfigurationTest {
             menuInfo(shown = listOf(READER_VIEW_GROUP_ID, ACCOUNTS_AND_SETTINGS_GROUP_ID, PAGE_CONTROLS_GROUP_ID))
 
         val configuration =
-            BrowserMenuConfiguration.sections(
+            BrowserMenuConfiguration.customizableSections(
                 isToolbarAtBottom = false,
                 isExpandedToolbarEnabled = false,
                 customizationInfo = customization,
@@ -155,7 +232,7 @@ class BrowserMenuConfigurationTest {
             )
 
         val configuration =
-            BrowserMenuConfiguration.sections(
+            BrowserMenuConfiguration.customizableSections(
                 isToolbarAtBottom = true,
                 isExpandedToolbarEnabled = false,
                 customizationInfo = customization,
@@ -196,7 +273,8 @@ class BrowserMenuConfigurationTest {
             )
 
         assertEquals(
-            BrowserMenuConfiguration.sections(isToolbarAtBottom = true, isExpandedToolbarEnabled = false).map { it.id },
+            BrowserMenuConfiguration.customizableSections(isToolbarAtBottom = true, isExpandedToolbarEnabled = false)
+                .map { it.id },
             defaultMenuInfo.visibleSectionIds,
         )
         assertEquals(PAGE_CONTROLS_GROUP_ID, defaultMenuInfo.visibleSectionIds.last())
@@ -632,6 +710,95 @@ class BrowserMenuConfigurationTest {
                 .flatMap { it.subItemIds }
 
         assertEquals(emptyList(), subItemIds.filter { it in topLevelOnlyIds })
+    }
+
+    @Test
+    fun `WHEN building browser menu THEN the promo banner declares both banners, leaving to their providers whether to show them`() {
+        listOf(true, false).forEach { isToolbarAtBottom ->
+            val configuration =
+                BrowserMenuConfiguration.sections(
+                    isToolbarAtBottom = isToolbarAtBottom,
+                    isExpandedToolbarEnabled = false,
+                )
+
+            val promoBanner = configuration.single { it.id == PROMO_BANNER_GROUP_ID }
+            assertEquals(Row, promoBanner.presentationMode)
+            assertEquals(listOf(DefaultBrowserBanner, CustomizeMenuBanner), promoBanner.items)
+            assertFalse(promoBanner.isSticky)
+        }
+    }
+
+    @Test
+    fun `WHEN checking allSections, defaultMenuInfo, and hiddenSections THEN promo banner is never included`() {
+        assertTrue(BrowserMenuConfiguration.allSections().none { it.id == PROMO_BANNER_GROUP_ID })
+
+        val defaultInfo =
+            BrowserMenuConfiguration.defaultMenuInfo(isToolbarAtBottom = false, isExpandedToolbarEnabled = false)
+        assertFalse(PROMO_BANNER_GROUP_ID in defaultInfo.visibleSectionIds)
+        assertFalse(PROMO_BANNER_GROUP_ID in defaultInfo.hiddenSectionIds)
+
+        val hiddenWithPromo =
+            menuInfo(shown = listOf(ACCOUNTS_AND_SETTINGS_GROUP_ID), hidden = listOf(PROMO_BANNER_GROUP_ID))
+        assertTrue(BrowserMenuConfiguration.hiddenSections(hiddenWithPromo).isEmpty())
+    }
+
+    @Test
+    fun `WHEN checking isCustomized THEN returns false for default structure and true for modified structure`() {
+        val defaultInfo =
+            BrowserMenuConfiguration.defaultMenuInfo(isToolbarAtBottom = false, isExpandedToolbarEnabled = false)
+
+        assertFalse(
+            BrowserMenuConfiguration.isCustomized(
+                customizationInfo = defaultInfo,
+                isToolbarAtBottom = false,
+                isExpandedToolbarEnabled = false,
+            )
+        )
+        assertTrue(
+            BrowserMenuConfiguration.isCustomized(
+                customizationInfo = defaultInfo.copy(isNavigationSectionMoved = true),
+                isToolbarAtBottom = false,
+                isExpandedToolbarEnabled = false,
+            )
+        )
+        assertTrue(
+            BrowserMenuConfiguration.isCustomized(
+                customizationInfo = menuInfo(shown = listOf(TOOLS_GROUP_ID, ACCOUNTS_AND_SETTINGS_GROUP_ID)),
+                isToolbarAtBottom = false,
+                isExpandedToolbarEnabled = false,
+            )
+        )
+    }
+
+    @Test
+    fun `GIVEN only the items of a section differ from the default WHEN checking isCustomized THEN return true`() {
+        val defaultSectionsInfo = BrowserMenuConfiguration.defaultSectionsInfo()
+        val customizedSectionsInfo = defaultSectionsInfo.mapValues { (_, info) ->
+            info.copy(items = info.items.drop(1), hiddenItems = info.items.take(1))
+        }
+
+        listOf(
+                null,
+                BrowserMenuConfiguration.defaultMenuInfo(isToolbarAtBottom = false, isExpandedToolbarEnabled = false),
+            )
+            .forEach { customizationInfo ->
+                assertFalse(
+                    BrowserMenuConfiguration.isCustomized(
+                        customizationInfo = customizationInfo,
+                        isToolbarAtBottom = false,
+                        isExpandedToolbarEnabled = false,
+                        customizedSectionsInfo = defaultSectionsInfo,
+                    )
+                )
+                assertTrue(
+                    BrowserMenuConfiguration.isCustomized(
+                        customizationInfo = customizationInfo,
+                        isToolbarAtBottom = false,
+                        isExpandedToolbarEnabled = false,
+                        customizedSectionsInfo = customizedSectionsInfo,
+                    )
+                )
+            }
     }
 
     private fun menuInfo(shown: List<String>, hidden: List<String> = emptyList()) =

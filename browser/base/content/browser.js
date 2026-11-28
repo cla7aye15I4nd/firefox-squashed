@@ -148,6 +148,13 @@ ChromeUtils.defineLazyGetter(this, "fxAccounts", () => {
   ).getFxAccountsSingleton();
 });
 
+ChromeUtils.defineLazyGetter(this, "FullZoom", () => {
+  const { FullZoom } = ChromeUtils.importESModule(
+    "moz-src:///browser/components/tabbrowser/FullZoom.sys.mjs"
+  );
+  return new FullZoom(window);
+});
+
 XPCOMUtils.defineLazyScriptGetter(
   this,
   ["BrowserCommands", "kSkipCacheFlags"],
@@ -176,11 +183,6 @@ XPCOMUtils.defineLazyScriptGetter(
 );
 XPCOMUtils.defineLazyScriptGetter(
   this,
-  "FullZoom",
-  "chrome://browser/content/tabbrowser/browser-fullZoom.js"
-);
-XPCOMUtils.defineLazyScriptGetter(
-  this,
   "PanelUI",
   "chrome://browser/content/customizableui/panelUI.js"
 );
@@ -198,11 +200,6 @@ XPCOMUtils.defineLazyScriptGetter(
     "gXPInstallObserver",
   ],
   "chrome://browser/content/browser-addons.js"
-);
-XPCOMUtils.defineLazyScriptGetter(
-  this,
-  ["CustomizationHandler", "AutoHideMenubar"],
-  "chrome://browser/content/browser-customization.js"
 );
 XPCOMUtils.defineLazyScriptGetter(
   this,
@@ -548,6 +545,13 @@ ChromeUtils.defineLazyGetter(this, "Win7Features", () => {
       }
     },
   };
+});
+
+ChromeUtils.defineLazyGetter(this, "CustomizationHandler", () => {
+  let { CustomizationHandler: Handler } = ChromeUtils.importESModule(
+    "moz-src:///browser/components/customizableui/BrowserCustomization.sys.mjs"
+  );
+  return new Handler(window);
 });
 
 ChromeUtils.defineLazyGetter(this, "gRestoreLastSessionObserver", () => {

@@ -1634,6 +1634,15 @@ static void OptionValueMightHaveChanged(nsIContent* aMutatingNode) {
 #endif
 }
 
+static void OptGroupLabelMightHaveChanged(nsIContent* aMutatingNode) {
+#ifdef ACCESSIBILITY
+  if (nsAccessibilityService* acc = GetAccService()) {
+    acc->OptGroupLabelMaybeChanged(aMutatingNode->OwnerDoc()->GetPresShell(),
+                                   aMutatingNode);
+  }
+#endif
+}
+
 void HTMLSelectElement::SelectedContentTextMightHaveChanged(
     bool aNotify, IgnoredOptionList aIgnored) {
   RefPtr textNode = GetSelectedContentText();
@@ -1644,7 +1653,7 @@ void HTMLSelectElement::SelectedContentTextMightHaveChanged(
   if (!mPreviewValue.IsEmpty()) {
     newText.Assign(mPreviewValue);
   } else if (auto* selectedOption = GetSelectedOption(aIgnored)) {
-    selectedOption->GetRenderedLabel(newText);
+    selectedOption->GetRenderedLabel(newText, AltText::Include);
   }
   ButtonControlFrame::EnsureNonEmptyLabel(newText);
   textNode->SetText(newText, aNotify);
@@ -1683,21 +1692,6 @@ void HTMLSelectElement::UserFinishedInteracting(bool aChanged) {
                                        Cancelable::eNo);
 }
 
-void HTMLSelectElement::AttributeChanged(dom::Element* aElement,
-                                         int32_t aNameSpaceID,
-                                         nsAtom* aAttribute, AttrModType,
-                                         const nsAttrValue* aOldValue) {
-  if (aElement->IsHTMLElement(nsGkAtoms::option) &&
-      aNameSpaceID == kNameSpaceID_None && aAttribute == nsGkAtoms::label) {
-    // A11y has its own mutation listener for this so no need to do
-    // OptionValueMightHaveChanged().
-    SelectedContentTextMightHaveChanged();
-    if (!mIsUpdatingSelectedContent) {
-      ScheduleSelectedContentUpdate();
-    }
-  }
-}
-
 static bool InsideSelectedOption(nsIContent* aContent,
                                  HTMLSelectElement* aLimit) {
   for (nsIContent* cur = aContent->GetParent(); cur != aLimit;
@@ -1709,10 +1703,42 @@ static bool InsideSelectedOption(nsIContent* aContent,
   return false;
 }
 
+void HTMLSelectElement::AttributeChanged(dom::Element* aElement,
+                                         int32_t aNameSpaceID,
+                                         nsAtom* aAttribute, AttrModType,
+                                         const nsAttrValue* aOldValue) {
+  if (aNameSpaceID != kNameSpaceID_None) {
+    return;
+  }
+  if (aElement->IsHTMLElement(nsGkAtoms::option) &&
+      aAttribute == nsGkAtoms::label) {
+    // A11y has its own mutation listener for this so no need to do
+    // OptionValueMightHaveChanged().
+    SelectedContentTextMightHaveChanged();
+    if (!mIsUpdatingSelectedContent) {
+      ScheduleSelectedContentUpdate();
+    }
+    return;
+  }
+  if (aElement->IsHTMLElement(nsGkAtoms::img) && aAttribute == nsGkAtoms::alt &&
+      nsContentUtils::IsInSameAnonymousTree(this, aElement)) {
+    OptGroupLabelMightHaveChanged(aElement);
+    if (IsInComposedDoc() && IsCombobox()) {
+      OptionValueMightHaveChanged(aElement);
+      if (InsideSelectedOption(aElement, this)) {
+        SelectedContentTextMightHaveChanged();
+      }
+    }
+  }
+}
+
 void HTMLSelectElement::CharacterDataChanged(nsIContent* aContent,
                                              const CharacterDataChangeInfo&) {
-  if (IsInComposedDoc() && IsCombobox() &&
-      nsContentUtils::IsInSameAnonymousTree(this, aContent)) {
+  if (!nsContentUtils::IsInSameAnonymousTree(this, aContent)) {
+    return;
+  }
+  OptGroupLabelMightHaveChanged(aContent);
+  if (IsInComposedDoc() && IsCombobox()) {
     OptionValueMightHaveChanged(aContent);
     if (InsideSelectedOption(aContent, this)) {
       // We deliberately only refresh the select button text here, not the
@@ -1759,6 +1785,7 @@ void HTMLSelectElement::ContentWillBeRemoved(nsIContent* aChild,
   if (!nsContentUtils::IsInSameAnonymousTree(this, aChild)) {
     return;
   }
+  OptGroupLabelMightHaveChanged(aChild);
   MutatedOptions options;
   const bool anySelected = CollectOptions(*this, aChild, options);
   const bool combobox = IsCombobox();
@@ -1814,6 +1841,7 @@ void HTMLSelectElement::ContentAppendedOrInserted(nsIContent* aFirstNewContent,
   bool anySelected = false;
   for (auto* cur = aFirstNewContent; cur; cur = cur->GetNextSibling()) {
     anySelected |= CollectOptions(*this, cur, options);
+    OptGroupLabelMightHaveChanged(cur);
     if (!aIsAppend) {
       break;
     }
@@ -2642,7 +2670,7 @@ nsresult HTMLSelectElement::HandleKeyPress(EventChainPostVisitor& aVisitor) {
     }
 
     nsAutoString text;
-    optionElement->GetRenderedLabel(text);
+    optionElement->GetRenderedLabel(text, AltText::Include);
     if (!StringBeginsWith(
             nsContentUtils::TrimWhitespace<
                 nsContentUtils::IsHTMLWhitespaceOrNBSP>(text, false),

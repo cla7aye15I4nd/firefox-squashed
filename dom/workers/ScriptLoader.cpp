@@ -608,7 +608,7 @@ nsContentPolicyType WorkerScriptLoader::GetContentPolicyType(
 
     if (aRequest->AsModuleRequest()->IsDynamicImport()) {
       if (aRequest->AsModuleRequest()->mModuleType ==
-          JS::ModuleType::JavaScript) {
+          JS::ModuleType::JavaScriptOrWasm) {
         return nsIContentPolicy::TYPE_INTERNAL_MODULE;
       } else {
         MOZ_ASSERT(aRequest->AsModuleRequest()->mModuleType ==
@@ -735,7 +735,7 @@ already_AddRefed<ScriptLoadRequest> WorkerScriptLoader::CreateScriptLoadRequest(
 
     // Part of Step 2. This sets the Top-level flag to true
     request = new ModuleLoadRequest(
-        JS::ModuleType::JavaScript, SRIMetadata(), referrer, loadContext,
+        JS::ModuleType::JavaScriptOrWasm, SRIMetadata(), referrer, loadContext,
         ModuleLoadRequest::Kind::TopLevel, moduleLoader, nullptr);
   }
 
@@ -1050,9 +1050,10 @@ nsresult WorkerScriptLoader::LoadScript(
   // For each debugger script, a non-debugger script load of the same script
   // should have occured prior that processed the headers.
   if (!IsDebuggerScript()) {
-    JS::ModuleType moduleType = request->IsModuleRequest()
-                                    ? request->AsModuleRequest()->mModuleType
-                                    : JS::ModuleType::JavaScript;
+    Maybe<JS::ModuleType> moduleType;
+    if (request->IsModuleRequest()) {
+      moduleType = Some(request->AsModuleRequest()->mModuleType);
+    }
 
     bool requiresStrictMimeCheck =
         GetContentPolicyType(request) ==

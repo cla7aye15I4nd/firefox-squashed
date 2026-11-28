@@ -11,6 +11,8 @@
 #include "mozilla/Atomics.h"
 #include "mozilla/StaticPrefs_network.h"
 #include "mozilla/glean/NetwerkMetrics.h"
+#include "mozilla/java/GeckoAppShellWrappers.h"
+#include "mozilla/jni/Utils.h"
 #include "mozilla/net/DNSPacket.h"
 #include "nsIDNSService.h"
 
@@ -19,6 +21,32 @@ namespace mozilla::net {
 // The first call to ResolveHTTPSRecordImpl will load the library
 // and function pointers.
 static Atomic<bool> sLibLoading{false};
+
+// Captures every unencrypted resolver configured on the active network, via the
+// Android framework (ConnectivityManager). Used for RFC 9462 DDR verification:
+// any of these resolvers may have answered the query, so verification accepts a
+// designated resolver whose certificate covers any one of them.
+static void CaptureResolverAddrs(nsTArray<NetAddr>& aOut) {
+  if (!jni::IsAvailable()) {
+    return;
+  }
+
+  jni::ObjectArray::LocalRef servers;
+  if (NS_FAILED(java::GeckoAppShell::GetDNSServers(&servers)) || !servers) {
+    return;
+  }
+
+  for (size_t i = 0; i < servers->Length(); i++) {
+    jni::String::LocalRef server = servers->GetElement(i);
+    if (!server) {
+      continue;
+    }
+    NetAddr addr;
+    if (NS_SUCCEEDED(addr.InitFromString(server->ToCString()))) {
+      AppendResolverAddr(aOut, addr);
+    }
+  }
+}
 
 // https://developer.android.com/ndk/reference/group/networking#android_res_nquery
 // The function android_res_nquery is defined in <android/multinetwork.h>
@@ -40,7 +68,8 @@ nsresult ResolveHTTPSRecordImpl(const nsACString& aHost,
                                 const Maybe<nsCString>& aOriginHost,
                                 nsIDNSService::DNSFlags aFlags,
                                 TypeRecordResultType& aResult, uint32_t& aTTL,
-                                HTTPSAliasTarget& aAlias) {
+                                HTTPSAliasTarget& aAlias, uint16_t aType,
+                                nsTArray<NetAddr>* aResolverAddrs) {
   DNSPacket packet;
   nsAutoCString host(aHost);
   nsresult rv;
@@ -81,8 +110,7 @@ nsresult ResolveHTTPSRecordImpl(const nsACString& aHost,
         if (aFlags & nsIDNSService::RESOLVE_BYPASS_CACHE) {
           flags = ANDROID_RESOLV_NO_CACHE_LOOKUP;
         }
-        fd = sAndroidResNQuery(0, host.get(), ns_c_in,
-                               nsIDNSService::RESOLVE_TYPE_HTTPSSVC, flags);
+        fd = sAndroidResNQuery(0, host.get(), ns_c_in, aType, flags);
 
         if (fd < 0) {
           LOG("DNS query failed");
@@ -114,15 +142,21 @@ nsresult ResolveHTTPSRecordImpl(const nsACString& aHost,
 
         return len;
       });
-  mozilla::glean::networking::dns_native_https_call_time.AccumulateRawDuration(
-      TimeStamp::Now() - startTime);
+  if (aType == nsIDNSService::RESOLVE_TYPE_HTTPSSVC) {
+    mozilla::glean::networking::dns_native_https_call_time
+        .AccumulateRawDuration(TimeStamp::Now() - startTime);
+  }
   if (NS_FAILED(rv)) {
     LOG("failed rv");
     return rv;
   }
 
+  if (aResolverAddrs) {
+    CaptureResolverAddrs(*aResolverAddrs);
+  }
+
   packet.SetOriginHost(aOriginHost);
-  return ParseHTTPSRecord(host, packet, aResult, aTTL, aAlias);
+  return ParseHTTPSRecord(host, packet, aResult, aTTL, aAlias, aType);
 }
 
 void DNSThreadShutdown() {}

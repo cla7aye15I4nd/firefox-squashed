@@ -13,16 +13,19 @@ import androidx.fragment.compose.content
 import androidx.lifecycle.coroutineScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import mozilla.components.compose.menu.store.CustomizableMenuItemsAction.BackPressed
 import mozilla.components.compose.menu.store.CustomizableMenuItemsState
 import mozilla.components.compose.menu.store.CustomizableMenuItemsStore
 import mozilla.components.compose.menu.ui.customize.EditMenuItemsContent
 import mozilla.components.lib.state.helpers.StoreProvider.Companion.fragmentStore
+import mozilla.components.support.base.feature.UserInteractionHandler
 import mozilla.components.support.base.feature.ViewBoundFeatureWrapper
 import org.mozilla.fenix.R
 import org.mozilla.fenix.components.menu.MenuItemsRegistry
 import org.mozilla.fenix.components.menu.configuration.BrowserMenuConfiguration
 import org.mozilla.fenix.components.menu.middleware.EditMenuItemsMiddleware
 import org.mozilla.fenix.components.menu.middleware.EditMenuItemsNavigationMiddleware
+import org.mozilla.fenix.components.menu.middleware.EditMenuItemsTelemetryMiddleware
 import org.mozilla.fenix.e2e.SystemInsetsPaddedFragment
 import org.mozilla.fenix.ext.requireComponents
 import org.mozilla.fenix.ext.showToolbar
@@ -31,7 +34,7 @@ import org.mozilla.fenix.snackbar.SnackbarBinding
 import org.mozilla.fenix.theme.FirefoxTheme
 
 /** Screen allowing the user to customize which items of a menu section are shown and in which order. */
-class EditMenuItemsFragment : Fragment(), SystemInsetsPaddedFragment {
+class EditMenuItemsFragment : Fragment(), UserInteractionHandler, SystemInsetsPaddedFragment {
     private val args by navArgs<EditMenuItemsFragmentArgs>()
     private val snackbarBinding = ViewBoundFeatureWrapper<SnackbarBinding>()
 
@@ -56,8 +59,10 @@ class EditMenuItemsFragment : Fragment(), SystemInsetsPaddedFragment {
                             cannotMoveAsSubItemMessage =
                                 getString(R.string.edit_menu_items_extensions_cannot_be_moved_into_more),
                             cannotHideLastItemMessage = getString(R.string.edit_menu_items_section_cannot_be_empty),
+                            settings = requireComponents.settings,
                         ),
                         EditMenuItemsNavigationMiddleware(findNavController()),
+                        EditMenuItemsTelemetryMiddleware(args.sectionId),
                     ),
             )
         }
@@ -97,5 +102,10 @@ class EditMenuItemsFragment : Fragment(), SystemInsetsPaddedFragment {
     override fun onResume() {
         super.onResume()
         showToolbar(getString(R.string.edit_menu_items))
+    }
+
+    override fun onBackPressed(): Boolean {
+        store.dispatch(BackPressed)
+        return false
     }
 }

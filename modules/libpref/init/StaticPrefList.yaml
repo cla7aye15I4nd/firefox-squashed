@@ -11389,14 +11389,6 @@
   mirror: always
   rust: true
 
-# Is support for CSS calc() typed arithmetic (unit multiplication/division) enabled?
-# https://drafts.csswg.org/css-values-4/#calc-type-checking
-- name: layout.css.calc-typed-arithmetic.enabled
-  type: RelaxedAtomicBool
-  value: true
-  mirror: always
-  rust: true
-
 # Is support for fit-content() enabled?
 - name: layout.css.fit-content-function.enabled
   type: RelaxedAtomicBool
@@ -12042,6 +12034,13 @@
 - name: layout.image.eager_broken_image_icon
   type: bool
   value: false
+  mirror: always
+
+# Whether inlines try to handle negative margins more correctly.
+# Remove me after shipping for a release or two.
+- name: layout.inline.improved-negative-margins.enabled
+  type: bool
+  value: true
   mirror: always
 
 # Enable/disable interruptible reflow, which allows reflows to stop
@@ -17648,6 +17647,23 @@
 
 # Whether to add additional record IPs to the cache
 - name: network.trr.add_additional_records
+  type: RelaxedAtomicBool
+  value: false
+  mirror: always
+
+# When true, and no DoH provider is configured, DoHController may run RFC 9462
+# Discovery of Designated Resolvers (DDR) to find a DoH server designated by the
+# network's unencrypted resolver.
+- name: network.trr.ddr.enabled
+  type: RelaxedAtomicBool
+  value: false
+  mirror: always
+
+# When true, a resolver discovered via RFC 9462 DDR is set as the
+# system TRR endpoint once verified. When false, DDR discovery still runs and
+# records telemetry, but the discovered resolver is not used - this lets us
+# measure DDR availability without changing users' DNS.
+- name: network.trr.ddr.use_resolver
   type: RelaxedAtomicBool
   value: false
   mirror: always

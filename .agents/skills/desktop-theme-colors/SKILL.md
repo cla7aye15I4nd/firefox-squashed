@@ -16,9 +16,10 @@ inconsistent. Load `desktop-probing` before the first live launch (a
 machine's and the target's) that this skill cites by section.
 
 **Read the used value off the live element** with the instruments in
-`desktop-probing` §1. Also apply the checks in
+`desktop-probing` §1. Whether or not you can, apply the checks in
 `accessible/docs/HCMCSSChecklist.md` on foreground/background pairs, matching
-interaction states, borders, visual effects and SVG colors.
+interaction states, borders, visual effects and SVG colors, to every color a
+change adds or modifies.
 
 Also load `desktop-theme-tokens` when the color comes from a design token, and
 `desktop-theme-screenshots` when the result needs showing on the bug.
@@ -29,8 +30,9 @@ Also load `desktop-theme-tokens` when the color comes from a design token, and
 `docs/code-quality/coding-style/css_guidelines.md` and
 `toolkit/themes/shared/design-system/docs/README.design-tokens.stories.md`.
 They're kept up to date with how different parts of the code base interact in
-non-obvious ways; they may differ from what you remember. Before the probe, read
-css_guidelines "Colors that resolve per realm" and "High contrast mode" with its
+non-obvious ways; they may differ from what you remember. Before the probe, or
+before reviewing a diff without one, read css_guidelines "Colors that resolve
+per realm" and "High contrast mode" with its
 "Content area" and "Chrome area" subsections, and the README's "Chrome native OS
 theme".** When the color comes from a theme, built-in or add-on, also read
 "Theme support": a WebExtension theme writes its mapped colors inline on the
@@ -98,13 +100,11 @@ Reach either realm's regime on any platform:
 - `window.browsingContext.forcedColorsOverride = "active"`, from chrome JS:
   css_guidelines "Chrome area" says what it reaches and how to approximate
   Windows chrome, which is only `requested`, by setting `forced-color-adjust:
-  none` on the chrome root; `prefers-contrast` stays out of it. `(forced-colors:
-  active)` matches under the override but not in Windows chrome, which matches
-  `(forced-colors: requested)` and the bare `(forced-colors)`, so check which
-  form a rule uses before trusting a simulated pass. The override covers one
-  window: set it on each window's own `browsingContext` and reset each to
-  `"none"` afterward. Before passing a window to `./mach theme check-hcm-colors`, read §2
-  "Putting chrome under forced colors" in `references/forced-color-filter.md`.
+  none` on the chrome root; `prefers-contrast` stays out of it. The override
+  covers one window: set it on each window's own `browsingContext` and reset
+  each to `"none"` afterward. Before passing a window to `./mach theme check-hcm-colors`,
+  read §2 "Putting chrome under forced colors" in
+  `references/forced-color-filter.md`.
 
 All three take effect live. Set `ui.useAccessibilityTheme` at startup to load
 the system colors under it from the beginning; flip `document_color_use` mid-run
@@ -140,7 +140,7 @@ forced-color adjustment" the UA border color per element.
 **A transparent border used as a spacer paints** where the document is `active`
 (a page, or chrome under §2's override), so a toolbar report is not this case.
 Give it a system color matching the surface behind it under
-`@media (forced-colors: active)`, as css_guidelines prescribes, after measuring
+`@media (forced-colors)`, as css_guidelines prescribes, after measuring
 that surface in the light, dark and stand-in sets (§6). Where the surface
 varies so that no one system color matches it, or the border has no reason to
 exist in any mode, move the gap into padding (inside the hit area) or margin

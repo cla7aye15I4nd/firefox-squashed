@@ -13,6 +13,7 @@ type Tabbrowser = BrowserWindow.Tabbrowser;
 
 declare var gBrowser: BrowserWindow["gBrowser"];
 declare var gCustomizeMode: BrowserWindow["gCustomizeMode"];
+declare var CustomizationHandler: BrowserWindow["CustomizationHandler"];
 declare var gInitialPages: BrowserWindow["gInitialPages"];
 declare var gMultiProcessBrowser: BrowserWindow["gMultiProcessBrowser"];
 declare var gURLBar: BrowserWindow["gURLBar"];
@@ -45,6 +46,8 @@ declare var MousePosTracker: BrowserWindow["MousePosTracker"];
 declare var PanelUI: BrowserWindow["PanelUI"];
 declare var gTabsPanel: BrowserWindow["gTabsPanel"];
 declare var ctrlTab: BrowserWindow["ctrlTab"];
+declare var FullZoom: BrowserWindow["FullZoom"];
+declare var ZoomManager: BrowserWindow["ZoomManager"];
 declare var StatusPanel: BrowserWindow["StatusPanel"];
 declare var TabBarVisibility: BrowserWindow["TabBarVisibility"];
 declare var TabContextMenu: BrowserWindow["TabContextMenu"];
